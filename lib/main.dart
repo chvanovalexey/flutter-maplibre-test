@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';  
 import 'package:firebase_core/firebase_core.dart';  
+import 'new_map_page.dart';
+import 'styled_map_page.dart';
 
 void main() async {  
   // Обязательно для инициализации Firebase  
@@ -54,6 +56,7 @@ class _MyHomePageState extends State<MyHomePage> {
       ),  
       body: Center(  
         child: Column(  
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text(
               'Демонстрация MapLibre',
@@ -65,10 +68,20 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const MapPage()),
+                  MaterialPageRoute(builder: (context) => const NewMapPage()),
                 );
               },
               child: const Text('Открыть карту'),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const StyledMapPage()),
+                );
+              },
+              child: const Text('Открыть стилизованную карту'),
             ),
           ],  
         ),  
