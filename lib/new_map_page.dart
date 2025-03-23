@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:maplibre/maplibre.dart';
 import 'map_styles.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'performance_overlay.dart';
 
 @immutable
 class NewMapPage extends StatefulWidget {
@@ -25,11 +26,12 @@ class _NewMapPageState extends State<NewMapPage> {
           initZoom: 10,
           initStyle: MapStyles.protomapsLight, // Используем другой стиль карты
         ),
-        children: const [
-          MapScalebar(),
-          SourceAttribution(),
-          MapControlButtons(showTrackLocation: true),
-          MapCompass(),
+        children: [
+          const MapScalebar(),
+          const SourceAttribution(),
+          const MapControlButtons(showTrackLocation: true),
+          const MapCompass(),
+          MapPerformanceOverlay(),
         ],
         onStyleLoaded: kIsWeb 
             ? (style) {
