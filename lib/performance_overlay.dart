@@ -130,10 +130,6 @@ class _PerformanceMetricsPainter extends CustomPainter {
   final ThemeData theme;
 
   late final _backgroundPaint = Paint()..color = Colors.white60;
-  late final _borderPaint = Paint()
-    ..color = Colors.black
-    ..strokeWidth = 1.5
-    ..style = PaintingStyle.stroke;
 
   @override
   void paint(Canvas canvas, Size size) {
