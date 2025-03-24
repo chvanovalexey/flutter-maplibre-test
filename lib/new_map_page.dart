@@ -18,6 +18,12 @@ class _NewMapPageState extends State<NewMapPage> {
   
   // Add state variable to track current projection
   MapProjection _currentProjection = MapProjection.mercator;
+  
+  // Add state variable to track current map style
+  String _currentMapStyle = MapStyles.protomapsLight;
+  
+  // Key to force rebuild the map when style changes
+ // final _mapKey = GlobalKey();
 
   // Method to toggle between projections
   void _toggleProjection() {
@@ -33,6 +39,17 @@ class _NewMapPageState extends State<NewMapPage> {
     if (_mapController != null) {
       _mapController?.style?.setProjection(_currentProjection);
     }
+  }
+  
+  // Method to change map style
+  void _changeMapStyle(String style) {
+    if (_currentMapStyle == style) return;
+    
+    setState(() {
+      _currentMapStyle = style;
+      // Reset controller to force map recreation with new style
+      _mapController = null;
+    });
   }
   
   @override
@@ -57,26 +74,85 @@ class _NewMapPageState extends State<NewMapPage> {
             ),
         ],
       ),
-      body: MapLibreMap(
-        options: MapOptions(
-          initCenter: Position(37.62, 55.75), // Координаты Москвы (lng, lat)
-          initZoom: 10,
-          initStyle: MapStyles.protomapsLight, // Используем другой стиль карты
-        ),
-        onMapCreated: (controller) {
-          _mapController = controller;
-          
-          // Set initial projection on web platforms
-          if (kIsWeb) {
-            _mapController?.style?.setProjection(_currentProjection);
-          }
-        },
+      body: Row(
         children: [
-          const MapScalebar(),
-          const SourceAttribution(),
-          const MapControlButtons(showTrackLocation: true),
-          const MapCompass(),
-          MapPerformanceOverlay(),
+          // Left panel with style radio buttons
+          Container(
+            width: 200,
+            padding: const EdgeInsets.all(8.0),
+            color: Theme.of(context).colorScheme.surface,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8.0),
+                  child: Text(
+                    'Стили карты',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ),
+                RadioListTile<String>(
+                  title: const Text('Protomaps Light'),
+                  value: MapStyles.protomapsLight,
+                  groupValue: _currentMapStyle,
+                  onChanged: (value) => _changeMapStyle(value!),
+                ),
+                RadioListTile<String>(
+                  title: const Text('Protomaps Dark'),
+                  value: MapStyles.protomapsDark,
+                  groupValue: _currentMapStyle,
+                  onChanged: (value) => _changeMapStyle(value!),
+                ),
+                RadioListTile<String>(
+                  title: const Text('Maptiler Streets'),
+                  value: MapStyles.maptilerStreets,
+                  groupValue: _currentMapStyle,
+                  onChanged: (value) => _changeMapStyle(value!),
+                ),
+              ],
+            ),
+          ),
+          // Map takes remaining width
+          Expanded(
+            child: MapLibreMap(
+              key: ValueKey(_currentMapStyle), // Add key based on style to force rebuild
+              options: MapOptions(
+                initCenter: Position(37.62, 55.75), // Координаты Москвы (lng, lat)
+                initZoom: 10,
+                initStyle: _currentMapStyle, // Use current style from state
+              ),
+              onMapCreated: (controller) {
+                _mapController = controller;
+                
+                // Set initial projection on web platforms
+                if (kIsWeb) {
+                  _mapController?.style?.setProjection(_currentProjection);
+                }
+              },
+              children: [
+                const MapScalebar(),
+                // Custom SourceAttribution with flexible constraints to handle overflow
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: const SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: SourceAttribution(),
+                    ),
+                  ),
+                ),
+                const MapControlButtons(showTrackLocation: true),
+                const MapCompass(),
+                MapPerformanceOverlay(),
+              ],
+            ),
+          ),
         ],
       ),
     );
