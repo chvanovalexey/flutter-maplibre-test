@@ -15,6 +15,7 @@ class MapPerformanceOverlay extends StatefulWidget {
   const MapPerformanceOverlay({
     this.alignment = Alignment.centerRight,
     this.padding = const EdgeInsets.all(12),
+    this.enabled = true, // Добавлен параметр enabled для возможности включения/выключения
     super.key,
   });
 
@@ -23,6 +24,10 @@ class MapPerformanceOverlay extends StatefulWidget {
 
   /// The [padding] of the performance overlay.
   final EdgeInsets padding;
+  
+  /// Whether the performance overlay is enabled.
+  /// When false, the ticker is paused and no performance metrics are collected.
+  final bool enabled;
 
   @override
   State<MapPerformanceOverlay> createState() => _MapPerformanceOverlayState();
@@ -40,12 +45,31 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
   Duration _lastTime = Duration.zero;
   List<Duration> _frameTimes = [];
   
+  // Переменная для снижения частоты обновления состояния
+  Duration _lastUpdateTime = Duration.zero;
+  
   @override
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick);
-    _ticker.start();
+    if (widget.enabled) {
+      _ticker.start();
+    }
     _checkWebGLAvailability();
+  }
+
+  @override
+  void didUpdateWidget(MapPerformanceOverlay oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    
+    // Включение/выключение тикера в зависимости от значения enabled
+    if (widget.enabled != oldWidget.enabled) {
+      if (widget.enabled) {
+        _ticker.start();
+      } else {
+        _ticker.stop();
+      }
+    }
   }
 
   /// Checks if WebGL is available on the current platform
@@ -75,8 +99,12 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
         _frameTimes.removeAt(0);
       }
       
-      // Обновляем значения каждые 10 кадров
-      if (_frameCount % 10 == 0) {
+      // Обновляем значения не чаще, чем раз в секунду
+      // Это значительно снижает нагрузку от частых вызовов setState
+      if (_lastUpdateTime == Duration.zero || 
+          elapsed - _lastUpdateTime > const Duration(milliseconds: 1000)) {
+        _lastUpdateTime = elapsed;
+        
         // Рассчитываем средний FPS
         final avgDuration = _frameTimes.fold<Duration>(
             Duration.zero, (sum, duration) => sum + duration) ~/ _frameTimes.length;
@@ -111,6 +139,11 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
 
   @override
   Widget build(BuildContext context) {
+    // Если оверлей отключен, возвращаем пустой контейнер
+    if (!widget.enabled) {
+      return const SizedBox.shrink();
+    }
+    
     final theme = Theme.of(context);
     
     // Increase the size of the overlay to accommodate the new WebGL information

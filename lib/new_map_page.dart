@@ -22,6 +22,9 @@ class _NewMapPageState extends State<NewMapPage> {
   // Add state variable to track current map style
   String _currentMapStyle = MapStyles.protomapsLight;
   
+  // Добавляем переменную для управления видимостью счетчика производительности
+  bool _showPerformanceOverlay = false;
+  
   // Key to force rebuild the map when style changes
  // final _mapKey = GlobalKey();
 
@@ -94,6 +97,18 @@ class _NewMapPageState extends State<NewMapPage> {
                   : 'Переключить на плоскую карту',
               onPressed: _toggleProjection,
             ),
+          // Добавляем кнопку включения/выключения счетчика производительности
+          IconButton(
+            icon: Icon(_showPerformanceOverlay ? Icons.speed : Icons.speed_outlined),
+            tooltip: _showPerformanceOverlay 
+                ? 'Скрыть счетчик производительности' 
+                : 'Показать счетчик производительности',
+            onPressed: () {
+              setState(() {
+                _showPerformanceOverlay = !_showPerformanceOverlay;
+              });
+            },
+          ),
         ],
       ),
       body: Row(
@@ -135,6 +150,9 @@ class _NewMapPageState extends State<NewMapPage> {
                 initCenter: Position(37.62, 55.75), // Координаты Москвы (lng, lat)
                 initZoom: 0,
                 initStyle: _currentMapStyle, // Use current style from state
+                // Для Android используем TextureMode, что может влиять на производительность
+                // Отключение TextureMode на Android может в некоторых случаях улучшить производительность
+                androidTextureMode: false
               ),
               onMapCreated: (controller) {
                 _mapController = controller;
@@ -169,7 +187,7 @@ class _NewMapPageState extends State<NewMapPage> {
                 ),
                 const MapControlButtons(showTrackLocation: true),
                 const MapCompass(),
-                MapPerformanceOverlay(),
+                MapPerformanceOverlay(enabled: _showPerformanceOverlay),
               ],
             ),
           ),
