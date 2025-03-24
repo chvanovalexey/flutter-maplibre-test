@@ -52,6 +52,19 @@ class _NewMapPageState extends State<NewMapPage> {
     });
   }
   
+  // Build radio list tiles for all map styles
+  List<Widget> _buildStyleRadioButtons() {
+    final Map<String, String> styles = MapStyles.getAllStyles();
+    return styles.entries.map((entry) {
+      return RadioListTile<String>(
+        title: Text(entry.value),
+        value: entry.key,
+        groupValue: _currentMapStyle,
+        onChanged: (value) => _changeMapStyle(value!),
+      );
+    }).toList();
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -94,24 +107,8 @@ class _NewMapPageState extends State<NewMapPage> {
                     ),
                   ),
                 ),
-                RadioListTile<String>(
-                  title: const Text('Protomaps Light'),
-                  value: MapStyles.protomapsLight,
-                  groupValue: _currentMapStyle,
-                  onChanged: (value) => _changeMapStyle(value!),
-                ),
-                RadioListTile<String>(
-                  title: const Text('Protomaps Dark'),
-                  value: MapStyles.protomapsDark,
-                  groupValue: _currentMapStyle,
-                  onChanged: (value) => _changeMapStyle(value!),
-                ),
-                RadioListTile<String>(
-                  title: const Text('Maptiler Streets'),
-                  value: MapStyles.maptilerStreets,
-                  groupValue: _currentMapStyle,
-                  onChanged: (value) => _changeMapStyle(value!),
-                ),
+                // Dynamically generated radio buttons for map styles
+                ..._buildStyleRadioButtons(),
               ],
             ),
           ),
