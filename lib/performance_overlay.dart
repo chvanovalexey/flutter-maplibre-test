@@ -1,11 +1,14 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+
+// Conditionally import dart:html only for web
+import 'web_gl_detector.dart' if (dart.library.html) 'web_gl_detector_web.dart';
 
 /// Display performance metrics on the map
 /// 
-/// Shows FPS, Frame time, and Jank score
+/// Shows FPS, Frame time, Jank score, and WebGL availability
 @immutable
 class MapPerformanceOverlay extends StatefulWidget {
   /// Creates a performance overlay widget
@@ -30,6 +33,7 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
   double _fps = 0;
   double _frameTime = 0;
   int _jankScore = 0;
+  bool _isWebGLAvailable = false;
 
   // Для подсчета FPS и измерения времени кадра
   int _frameCount = 0;
@@ -41,6 +45,15 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
     super.initState();
     _ticker = createTicker(_onTick);
     _ticker.start();
+    _checkWebGLAvailability();
+  }
+
+  /// Checks if WebGL is available on the current platform
+  /// For non-web platforms, this will always return false
+  void _checkWebGLAvailability() {
+    setState(() {
+      _isWebGLAvailable = isWebGLAvailable();
+    });
   }
 
   @override
@@ -100,6 +113,7 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
+    // Increase the size of the overlay to accommodate the new WebGL information
     return Container(
       alignment: widget.alignment,
       padding: widget.padding,
@@ -108,9 +122,10 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
           fps: _fps, 
           frameTime: _frameTime, 
           jankScore: _jankScore,
+          isWebGLAvailable: _isWebGLAvailable,
           theme: theme,
         ),
-        size: const Size(130, 70),
+        size: const Size(130, 90),
       ),
     );
   }
@@ -121,12 +136,14 @@ class _PerformanceMetricsPainter extends CustomPainter {
     required this.fps,
     required this.frameTime,
     required this.jankScore,
+    required this.isWebGLAvailable,
     required this.theme,
   });
 
   final double fps;
   final double frameTime;
   final int jankScore;
+  final bool isWebGLAvailable;
   final ThemeData theme;
 
   late final _backgroundPaint = Paint()..color = Colors.white60;
@@ -175,6 +192,20 @@ class _PerformanceMetricsPainter extends CustomPainter {
       5, 
       55
     );
+    
+    // Выводим доступность WebGL
+    final webGLColor = isWebGLAvailable ? Colors.green : Colors.red;
+    final webGLText = kIsWeb 
+        ? (isWebGLAvailable ? 'WebGL: Доступен' : 'WebGL: Недоступен')
+        : 'WebGL: Недоступен (не web)';
+    
+    _drawText(
+      canvas, 
+      webGLText, 
+      textStyle?.copyWith(color: webGLColor), 
+      5, 
+      75
+    );
   }
 
   void _drawText(Canvas canvas, String text, TextStyle? style, double x, double y) {
@@ -191,5 +222,6 @@ class _PerformanceMetricsPainter extends CustomPainter {
   bool shouldRepaint(covariant _PerformanceMetricsPainter oldDelegate) =>
       fps != oldDelegate.fps ||
       frameTime != oldDelegate.frameTime ||
-      jankScore != oldDelegate.jankScore;
+      jankScore != oldDelegate.jankScore ||
+      isWebGLAvailable != oldDelegate.isWebGLAvailable;
 } 

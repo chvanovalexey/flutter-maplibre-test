@@ -65,6 +65,15 @@ class _NewMapPageState extends State<NewMapPage> {
     }).toList();
   }
   
+  // Update the UI projection state based on the map style being used
+  void _updateProjectionState(MapProjection projection) {
+    if (_currentProjection != projection) {
+      setState(() {
+        _currentProjection = projection;
+      });
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,8 +116,14 @@ class _NewMapPageState extends State<NewMapPage> {
                     ),
                   ),
                 ),
-                // Dynamically generated radio buttons for map styles
-                ..._buildStyleRadioButtons(),
+                // Wrap in Expanded + SingleChildScrollView to make it scrollable
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: _buildStyleRadioButtons(),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -118,7 +133,7 @@ class _NewMapPageState extends State<NewMapPage> {
               key: ValueKey(_currentMapStyle), // Add key based on style to force rebuild
               options: MapOptions(
                 initCenter: Position(37.62, 55.75), // Координаты Москвы (lng, lat)
-                initZoom: 10,
+                initZoom: 0,
                 initStyle: _currentMapStyle, // Use current style from state
               ),
               onMapCreated: (controller) {
@@ -127,6 +142,14 @@ class _NewMapPageState extends State<NewMapPage> {
                 // Set initial projection on web platforms
                 if (kIsWeb) {
                   _mapController?.style?.setProjection(_currentProjection);
+                }
+              },
+              onStyleLoaded: (style) {
+                // When style is loaded, ensure our projection state matches what the map is using
+                if (kIsWeb) {
+                  // Since we can't directly query the current projection,
+                  // we'll update our state variable to match what we just set
+                  _updateProjectionState(_currentProjection);
                 }
               },
               children: [
