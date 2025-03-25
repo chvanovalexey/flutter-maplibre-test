@@ -3,6 +3,7 @@ import 'package:maplibre/maplibre.dart';
 import 'map_styles.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'performance_overlay.dart';
+import 'map_layers_info.dart';
 
 @immutable
 class NewMapPage extends StatefulWidget {
@@ -24,6 +25,9 @@ class _NewMapPageState extends State<NewMapPage> {
   
   // Добавляем переменную для управления видимостью счетчика производительности
   bool _showPerformanceOverlay = false;
+  
+  // Добавляем переменную для управления информацией о слоях карты
+  bool _showLayersInfo = false;
   
   // Key to force rebuild the map when style changes
  // final _mapKey = GlobalKey();
@@ -109,6 +113,18 @@ class _NewMapPageState extends State<NewMapPage> {
               });
             },
           ),
+          // Добавляем кнопку включения/выключения информации о слоях карты
+          IconButton(
+            icon: Icon(_showLayersInfo ? Icons.layers : Icons.layers_outlined),
+            tooltip: _showLayersInfo 
+                ? 'Скрыть информацию о слоях карты' 
+                : 'Показать информацию о слоях карты',
+            onPressed: () {
+              setState(() {
+                _showLayersInfo = !_showLayersInfo;
+              });
+            },
+          ),
         ],
       ),
       body: Row(
@@ -188,6 +204,15 @@ class _NewMapPageState extends State<NewMapPage> {
                 const MapControlButtons(showTrackLocation: true),
                 const MapCompass(),
                 MapPerformanceOverlay(enabled: _showPerformanceOverlay),
+                // Добавляем виджет информации о слоях карты
+                Positioned(
+                  top: 100, // Позиционируем ниже счетчика производительности
+                  right: 0,
+                  child: MapLayersInfo(
+                    enabled: _showLayersInfo,
+                    styleUrl: _currentMapStyle,
+                  ),
+                ),
               ],
             ),
           ),

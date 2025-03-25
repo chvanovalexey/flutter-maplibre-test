@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';  
 import 'package:firebase_core/firebase_core.dart';  
 import 'new_map_page.dart';
-import 'styled_map_page.dart';
 
 void main() async {  
   // Обязательно для инициализации Firebase  
@@ -72,16 +71,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
               child: const Text('Открыть карту'),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const StyledMapPage()),
-                );
-              },
-              child: const Text('Открыть стилизованную карту'),
             ),
           ],  
         ),  
