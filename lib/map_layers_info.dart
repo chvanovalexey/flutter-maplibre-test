@@ -137,7 +137,7 @@ class _MapLayersInfoState extends State<MapLayersInfo> {
     final theme = Theme.of(context);
     
     // Calculate the height based on the number of layer types plus space for title and total
-    final height = (_layerTypes.length * 20.0) + 40.0;
+    final height = (_layerTypes.length * 20.0) + 60.0;
     
     return Container(
       alignment: widget.alignment,
@@ -174,7 +174,7 @@ class _LayersInfoPainter extends CustomPainter {
   final String errorMessage;
   final ThemeData theme;
 
-  late final _backgroundPaint = Paint()..color = Colors.white60;
+  late final _backgroundPaint = Paint()..color = Colors.white.withOpacity(0.85);
 
   @override
   void paint(Canvas canvas, Size size) {

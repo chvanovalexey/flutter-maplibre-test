@@ -4,7 +4,24 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 // Conditionally import dart:html only for web
-import 'web_gl_detector.dart' if (dart.library.html) 'web_gl_detector_web.dart';
+import 'dart:html' as html if (dart.library.html) '';
+
+/// Web implementation to check for WebGL availability
+bool isWebGLAvailable() {
+  if (kIsWeb) {
+    try {
+      final canvas = html.CanvasElement();
+      final gl = canvas.getContext('webgl') ?? canvas.getContext('experimental-webgl');
+      return gl != null;
+    } catch (e) {
+      return false;
+    }
+  } else {
+    // Stub implementation for non-web platforms
+    // Always returns false since WebGL is a web-only feature
+    return false;
+  }
+}
 
 /// Display performance metrics on the map
 /// 
@@ -41,7 +58,6 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
   bool _isWebGLAvailable = false;
 
   // Для подсчета FPS и измерения времени кадра
-  int _frameCount = 0;
   Duration _lastTime = Duration.zero;
   List<Duration> _frameTimes = [];
   
@@ -87,8 +103,6 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
   }
 
   void _onTick(Duration elapsed) {
-    _frameCount++;
-    
     // Рассчет FPS и времени кадра
     if (_lastTime != Duration.zero) {
       final frameDuration = elapsed - _lastTime;
@@ -158,7 +172,7 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
           isWebGLAvailable: _isWebGLAvailable,
           theme: theme,
         ),
-        size: const Size(130, 90),
+        size: const Size(130, 100),
       ),
     );
   }
@@ -179,7 +193,7 @@ class _PerformanceMetricsPainter extends CustomPainter {
   final bool isWebGLAvailable;
   final ThemeData theme;
 
-  late final _backgroundPaint = Paint()..color = Colors.white60;
+  late final _backgroundPaint = Paint()..color = Colors.white.withOpacity(0.85);
 
   @override
   void paint(Canvas canvas, Size size) {
