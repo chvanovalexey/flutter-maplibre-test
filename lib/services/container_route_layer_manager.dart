@@ -56,9 +56,11 @@ class ContainerRouteLayerManager {
 
     for (final layerId in layerIds) {
       try {
+        // Просто пытаемся удалить слой, но подавляем вывод ошибки в консоль
         await _style.removeLayer(layerId);
       } catch (e) {
-        // Layer doesn't exist, ignore
+        // Слой не существует, молча игнорируем
+        // Не используем print, чтобы не загромождать консоль
       }
     }
 
@@ -74,9 +76,10 @@ class ContainerRouteLayerManager {
 
     for (final sourceId in sourceIds) {
       try {
+        // Просто пытаемся удалить источник, но подавляем вывод ошибки
         await _style.removeSource(sourceId);
       } catch (e) {
-        // Source doesn't exist, ignore
+        // Источник не существует, молча игнорируем
       }
     }
   }

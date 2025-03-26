@@ -22,7 +22,7 @@ class _NewMapPageState extends State<NewMapPage> {
   MapProjection _currentProjection = MapProjection.mercator;
   
   // Add state variable to track current map style
-  String _currentMapStyle = MapStyles.protomapsLight;
+  String _currentMapStyle = MapStyles.maptilerM1;
   
   // Добавляем переменную для управления видимостью счетчика производительности
   bool _showPerformanceOverlay = false;
