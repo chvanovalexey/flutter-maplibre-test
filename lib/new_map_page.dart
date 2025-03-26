@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'performance_overlay.dart';
 import 'map_layers_info.dart';
 import 'services/route_manager.dart';
+import 'widgets/map_style_dropdown.dart';
+import 'widgets/layer_visibility_control.dart';
 
 @immutable
 class NewMapPage extends StatefulWidget {
@@ -72,17 +74,12 @@ class _NewMapPageState extends State<NewMapPage> {
     });
   }
   
-  // Build radio list tiles for all map styles
-  List<Widget> _buildStyleRadioButtons() {
-    final Map<String, String> styles = MapStyles.getAllStyles();
-    return styles.entries.map((entry) {
-      return RadioListTile<String>(
-        title: Text(entry.value),
-        value: entry.key,
-        groupValue: _currentMapStyle,
-        onChanged: (value) => _changeMapStyle(value!),
-      );
-    }).toList();
+  // Method to handle layer visibility changes
+  void _handleLayerVisibilityChange(String layerId, bool isVisible) {
+    if (_mapController != null && _routeManager != null) {
+      // Toggle layer visibility via the route manager
+      _routeManager!.setLayerVisibility(layerId, isVisible);
+    }
   }
   
   // Update the UI projection state based on the map style being used
@@ -205,6 +202,15 @@ class _NewMapPageState extends State<NewMapPage> {
         title: const Text('Новая карта'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Add Style Dropdown in AppBar
+          MapStyleDropdown(
+            currentStyle: _currentMapStyle,
+            onStyleChanged: _changeMapStyle,
+          ),
+          // Add Layer Visibility Control in AppBar
+          LayerVisibilityControl(
+            onLayerVisibilityChanged: _handleLayerVisibilityChange,
+          ),
           // "Load Routes" button
           IconButton(
             icon: Icon(_routeLoaded ? Icons.directions_boat : Icons.directions_boat_outlined),
@@ -262,93 +268,57 @@ class _NewMapPageState extends State<NewMapPage> {
           ),
         ],
       ),
-      body: Row(
+      body: MapLibreMap(
+        key: ValueKey(_currentMapStyle), // Add key based on style to force rebuild
+        options: MapOptions(
+          initCenter: Position(37.62, 55.75), // Координаты Москвы (lng, lat)
+          initZoom: 0,
+          initStyle: _currentMapStyle, // Use current style from state
+          // Для Android используем TextureMode, что может влиять на производительность
+          // Отключение TextureMode на Android может в некоторых случаях улучшить производительность
+          androidTextureMode: false
+        ),
+        onMapCreated: (controller) {
+          _mapController = controller;
+          
+          // Set initial projection on web platforms
+          if (kIsWeb) {
+            _mapController?.style?.setProjection(_currentProjection);
+          }
+        },
+        onStyleLoaded: (style) {
+          // When style is loaded, ensure our projection state matches what the map is using
+          if (kIsWeb) {
+            // Since we can't directly query the current projection,
+            // we'll update our state variable to match what we just set
+            _updateProjectionState(_currentProjection);
+          }
+        },
         children: [
-          // Left panel with style radio buttons
-          Container(
-            width: 200,
-            padding: const EdgeInsets.all(8.0),
-            color: Theme.of(context).colorScheme.surface,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 8.0),
-                  child: Text(
-                    'Стили карты',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-                // Wrap in Expanded + SingleChildScrollView to make it scrollable
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      children: _buildStyleRadioButtons(),
-                    ),
-                  ),
-                ),
-              ],
+          const MapScalebar(alignment: Alignment.bottomRight),
+          // Custom SourceAttribution with flexible constraints to handle overflow
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: const SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: SourceAttribution(),
+              ),
             ),
           ),
-          // Map takes remaining width
-          Expanded(
-            child: MapLibreMap(
-              key: ValueKey(_currentMapStyle), // Add key based on style to force rebuild
-              options: MapOptions(
-                initCenter: Position(37.62, 55.75), // Координаты Москвы (lng, lat)
-                initZoom: 0,
-                initStyle: _currentMapStyle, // Use current style from state
-                // Для Android используем TextureMode, что может влиять на производительность
-                // Отключение TextureMode на Android может в некоторых случаях улучшить производительность
-                androidTextureMode: false
-              ),
-              onMapCreated: (controller) {
-                _mapController = controller;
-                
-                // Set initial projection on web platforms
-                if (kIsWeb) {
-                  _mapController?.style?.setProjection(_currentProjection);
-                }
-              },
-              onStyleLoaded: (style) {
-                // When style is loaded, ensure our projection state matches what the map is using
-                if (kIsWeb) {
-                  // Since we can't directly query the current projection,
-                  // we'll update our state variable to match what we just set
-                  _updateProjectionState(_currentProjection);
-                }
-              },
-              children: [
-                const MapScalebar(alignment: Alignment.bottomRight),
-                // Custom SourceAttribution with flexible constraints to handle overflow
-                Positioned(
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: const SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: SourceAttribution(),
-                    ),
-                  ),
-                ),
-                const MapControlButtons(showTrackLocation: true),
-                const MapCompass(),
-                MapPerformanceOverlay(enabled: _showPerformanceOverlay),
-                // Добавляем виджет информации о слоях карты
-                Positioned(
-                  top: 100, // Позиционируем ниже счетчика производительности
-                  right: 0,
-                  child: MapLayersInfo(
-                    enabled: _showLayersInfo,
-                    styleUrl: _currentMapStyle,
-                  ),
-                ),
-              ],
+          const MapControlButtons(showTrackLocation: true),
+          const MapCompass(),
+          MapPerformanceOverlay(enabled: _showPerformanceOverlay),
+          // Добавляем виджет информации о слоях карты
+          Positioned(
+            top: 100, // Позиционируем ниже счетчика производительности
+            right: 0,
+            child: MapLayersInfo(
+              enabled: _showLayersInfo,
+              styleUrl: _currentMapStyle,
             ),
           ),
         ],

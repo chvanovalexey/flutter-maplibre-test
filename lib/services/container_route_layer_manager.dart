@@ -434,4 +434,139 @@ class ContainerRouteLayerManager {
       // or use a predefined icon set that MapLibre supports
     }
   }
+
+  /// Set the visibility of a specific layer
+  Future<void> setLayerVisibility(String layerId, bool isVisible) async {
+    try {
+      // We need to first remove the layer
+      try {
+        await _style.removeLayer(layerId);
+      } catch (e) {
+        // Layer might not exist yet, that's ok
+      }
+      
+      // If the layer should be visible, add it back
+      if (isVisible) {
+        switch (layerId) {
+          case departurePortsLayerId:
+            await _style.addLayer(
+              SymbolStyleLayer(
+                id: departurePortsLayerId,
+                sourceId: departurePortsSourceId,
+                layout: {
+                  'icon-image': 'departurePortImage',
+                  'icon-size': 1.5,
+                  'icon-allow-overlap': true,
+                  'text-field': [
+                    'format',
+                    ['get', 'title'],
+                    { 'font-scale': 1.0 },
+                  ],
+                  'text-offset': [0, 1.5],
+                  'text-anchor': 'top',
+                  'text-size': 12,
+                  'text-allow-overlap': false,
+                },
+              ),
+            );
+            break;
+          case destinationPortsLayerId:
+            await _style.addLayer(
+              SymbolStyleLayer(
+                id: destinationPortsLayerId,
+                sourceId: destinationPortsSourceId,
+                layout: {
+                  'icon-image': 'destinationPortImage',
+                  'icon-size': 1.5,
+                  'icon-allow-overlap': true,
+                  'text-field': [
+                    'format',
+                    ['get', 'title'],
+                    { 'font-scale': 1.0 },
+                  ],
+                  'text-offset': [0, 1.5],
+                  'text-anchor': 'top',
+                  'text-size': 12,
+                  'text-allow-overlap': false,
+                },
+              ),
+            );
+            break;
+          case intermediatePortsLayerId:
+            await _style.addLayer(
+              SymbolStyleLayer(
+                id: intermediatePortsLayerId,
+                sourceId: intermediatePortsSourceId,
+                layout: {
+                  'icon-image': 'intermediatePortImage',
+                  'icon-size': 1.2,
+                  'icon-allow-overlap': true,
+                  'text-field': [
+                    'format',
+                    ['get', 'title'],
+                    { 'font-scale': 1.0 },
+                  ],
+                  'text-offset': [0, 1.5],
+                  'text-anchor': 'top',
+                  'text-size': 11,
+                  'text-allow-overlap': false,
+                },
+              ),
+            );
+            break;
+          case currentPositionLayerId:
+            await _style.addLayer(
+              SymbolStyleLayer(
+                id: currentPositionLayerId,
+                sourceId: currentPositionSourceId,
+                layout: {
+                  'icon-image': 'currentPositionImage',
+                  'icon-size': 1.5,
+                  'icon-allow-overlap': true,
+                  'text-field': [
+                    'format',
+                    ['get', 'title'],
+                    { 'font-scale': 1.0 },
+                  ],
+                  'text-offset': [0, 1.5],
+                  'text-anchor': 'top',
+                  'text-size': 12,
+                  'text-allow-overlap': false,
+                },
+              ),
+            );
+            break;
+          case pastRouteLayerId:
+            await _style.addLayer(
+              LineStyleLayer(
+                id: pastRouteLayerId,
+                sourceId: pastRouteSourceId,
+                paint: {
+                  'line-color': ['get', 'stroke'],
+                  'line-width': 4,
+                  'line-opacity': 0.8,
+                },
+              ),
+            );
+            break;
+          case futureRouteLayerId:
+            await _style.addLayer(
+              LineStyleLayer(
+                id: futureRouteLayerId,
+                sourceId: futureRouteSourceId,
+                paint: {
+                  'line-color': ['get', 'stroke'],
+                  'line-width': 2,
+                  'line-opacity': 0.6,
+                  'line-dasharray': [5, 5],
+                },
+              ),
+            );
+            break;
+        }
+      }
+    } catch (e) {
+      print('Error setting layer visibility: $e');
+    }
+  }
 }

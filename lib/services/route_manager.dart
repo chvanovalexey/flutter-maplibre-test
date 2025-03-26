@@ -184,4 +184,11 @@ class RouteManager {
     _layerManager = null;
     _currentRoute = null;
   }
+
+  /// Set the visibility of a layer
+  Future<void> setLayerVisibility(String layerId, bool isVisible) async {
+    if (_layerManager != null) {
+      await _layerManager!.setLayerVisibility(layerId, isVisible);
+    }
+  }
 } 
