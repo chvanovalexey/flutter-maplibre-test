@@ -36,6 +36,9 @@ class _NewMapPageState extends State<NewMapPage> {
   // Add state variable to track if route is loaded
   bool _routeLoaded = false;
   
+  // Add state variable to track if bulk load is in progress
+  bool _isLoadingBulk = false;
+  
   // Key to force rebuild the map when style changes
  // final _mapKey = GlobalKey();
 
@@ -136,6 +139,65 @@ class _NewMapPageState extends State<NewMapPage> {
     }
   }
   
+  // Load multiple GeoJSON files (from 1.geojson to 50.geojson)
+  Future<void> _loadMultipleGeoJsonFiles() async {
+    if (_isLoadingBulk) return;
+    
+    try {
+      setState(() {
+        _isLoadingBulk = true;
+      });
+      
+      if (_mapController != null) {
+        // Initialize route manager if needed
+        _routeManager ??= RouteManager(_mapController!);
+        
+        // Create a list of file paths from 1.geojson to 50.geojson
+        final filePaths = List.generate(
+          50, 
+          (index) => 'assets/sample-geojson/${index + 1}.geojson'
+        );
+        
+        // Load all files and add to existing sources
+        await _routeManager!.loadMultipleGeoJsonFiles(filePaths);
+        
+        // Update state
+        setState(() {
+          _routeLoaded = true;
+          _isLoadingBulk = false;
+        });
+      }
+    } catch (e) {
+      // Show error dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error Loading Multiple Files'),
+            content: Text('Failed to load GeoJSON files: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        
+        setState(() {
+          _isLoadingBulk = false;
+        });
+      }
+    }
+  }
+  
+  // Print source contents to console
+  Future<void> _printSourceContents() async {
+    if (_routeManager != null) {
+      await _routeManager!.printSourceContents();
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -148,6 +210,18 @@ class _NewMapPageState extends State<NewMapPage> {
             icon: Icon(_routeLoaded ? Icons.directions_boat : Icons.directions_boat_outlined),
             tooltip: _routeLoaded ? 'Скрыть маршруты' : 'Загрузить маршруты',
             onPressed: _routeLoaded ? _clearRoute : _loadSampleRoute,
+          ),
+          // "Load Multiple GeoJSON Files" button
+          IconButton(
+            icon: Icon(_isLoadingBulk ? Icons.sync : Icons.file_upload),
+            tooltip: 'Загрузить 50 GeoJSON файлов',
+            onPressed: _isLoadingBulk ? null : _loadMultipleGeoJsonFiles,
+          ),
+          // "Print Source Contents" button
+          IconButton(
+            icon: const Icon(Icons.print),
+            tooltip: 'Вывести содержимое источников',
+            onPressed: _printSourceContents,
           ),
           // Only show projection toggle on web platforms
           if (kIsWeb)
