@@ -1,5 +1,7 @@
 import 'dart:convert';
+//import 'dart:io';
 import 'package:flutter/material.dart' show EdgeInsets;
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:maplibre/maplibre.dart';
 import '../models/container_route.dart';
 
@@ -29,6 +31,9 @@ class ContainerRouteLayerManager {
   Future<void> initializeSources() async {
     // Remove any existing sources and layers first
     await _removePreviousSourcesAndLayers();
+    
+    // Load custom icon images
+    await _loadCustomIcons();
 
     // Add all sources
     await _addEmptySources();
@@ -117,11 +122,11 @@ class ContainerRouteLayerManager {
         id: departurePortsLayerId,
         sourceId: departurePortsSourceId,
         layout: {
-          'icon-image': 'harbor-15',
+          'icon-image': 'departurePortImage',
           'icon-size': 1.5,
           'icon-allow-overlap': true,
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
+          //'text-font': ['Open Sans Regular'],
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
           'text-size': 12,
@@ -135,11 +140,11 @@ class ContainerRouteLayerManager {
         id: destinationPortsLayerId,
         sourceId: destinationPortsSourceId,
         layout: {
-          'icon-image': 'harbor-15',
+          'icon-image': 'destinationPortImage',
           'icon-size': 1.5,
           'icon-allow-overlap': true,
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
+          //'text-font': ['Open Sans Regular'],
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
           'text-size': 12,
@@ -153,11 +158,11 @@ class ContainerRouteLayerManager {
         id: intermediatePortsLayerId,
         sourceId: intermediatePortsSourceId,
         layout: {
-          'icon-image': 'harbor-15',
+          'icon-image': 'intermediatePortImage',
           'icon-size': 1.2,
           'icon-allow-overlap': true,
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
+          //'text-font': ['Open Sans Regular'],
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
           'text-size': 11,
@@ -171,11 +176,11 @@ class ContainerRouteLayerManager {
         id: currentPositionLayerId,
         sourceId: currentPositionSourceId,
         layout: {
-          'icon-image': 'ferry-15',
+          'icon-image': 'currentPositionImage',
           'icon-size': 1.5,
           'icon-allow-overlap': true,
           'text-field': ['get', 'name'],
-          'text-font': ['Open Sans Regular'],
+          //'text-font': ['Open Sans Regular'],
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
           'text-size': 12,
@@ -365,6 +370,33 @@ class ContainerRouteLayerManager {
         bounds: bounds,
         padding: const EdgeInsets.all(50),
       );
+    }
+  }
+
+  /// Load the custom SVG icons needed for the map
+  Future<void> _loadCustomIcons() async {
+    try {
+      // Note: MapLibre might require bitmap images rather than SVG
+      // For SVG rendering, you might need to add a package like flutter_svg and convert SVGs to bitmaps
+      
+      // For now, using a simplified approach - this assumes MapLibre can handle these formats
+      // If this doesn't work, you may need to convert SVGs to PNG/JPEG format
+      
+      final departurePortImageData = await rootBundle.load('assets/icons/departurePortImage.png');
+      await _style.addImage('departurePortImage', departurePortImageData.buffer.asUint8List());
+      
+      final destinationPortImageData = await rootBundle.load('assets/icons/destinationPortImage.png');
+      await _style.addImage('destinationPortImage', destinationPortImageData.buffer.asUint8List());
+      
+      final intermediatePortImageData = await rootBundle.load('assets/icons/intermediatePortImage.png');
+      await _style.addImage('intermediatePortImage', intermediatePortImageData.buffer.asUint8List());
+      
+      final currentPositionImageData = await rootBundle.load('assets/icons/currentPositionImage.png');
+      await _style.addImage('currentPositionImage', currentPositionImageData.buffer.asUint8List());
+    } catch (e) {
+      print('Error loading custom icons: $e');
+      // If loading SVGs directly fails, you might need to convert them to PNG/JPEG first
+      // or use a predefined icon set that MapLibre supports
     }
   }
 }
