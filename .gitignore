@@ -28,3 +28,4 @@ doc/api/
 /.idea
 /flutter-maplibre
 firebase-debug.log
+/assets/sample-geojson

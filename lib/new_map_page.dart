@@ -4,6 +4,7 @@ import 'map_styles.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'performance_overlay.dart';
 import 'map_layers_info.dart';
+import 'services/route_manager.dart';
 
 @immutable
 class NewMapPage extends StatefulWidget {
@@ -28,6 +29,12 @@ class _NewMapPageState extends State<NewMapPage> {
   
   // Добавляем переменную для управления информацией о слоях карты
   bool _showLayersInfo = false;
+  
+  // Add route manager to handle container routes
+  RouteManager? _routeManager;
+  
+  // Add state variable to track if route is loaded
+  bool _routeLoaded = false;
   
   // Key to force rebuild the map when style changes
  // final _mapKey = GlobalKey();
@@ -56,6 +63,9 @@ class _NewMapPageState extends State<NewMapPage> {
       _currentMapStyle = style;
       // Reset controller to force map recreation with new style
       _mapController = null;
+      // Reset route manager and route loaded state
+      _routeManager = null;
+      _routeLoaded = false;
     });
   }
   
@@ -81,6 +91,51 @@ class _NewMapPageState extends State<NewMapPage> {
     }
   }
   
+  // Load sample route
+  Future<void> _loadSampleRoute() async {
+    try {
+      if (_mapController != null) {
+        // Initialize route manager if needed
+        _routeManager ??= RouteManager(_mapController!);
+        
+        // Load the sample route
+        await _routeManager!.loadRouteFromFile('assets/sample-geojson/sample-resp.geojson');
+        
+        // Update state
+        setState(() {
+          _routeLoaded = true;
+        });
+      }
+    } catch (e) {
+      // Show error dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error Loading Route'),
+            content: Text('Failed to load route: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
+    }
+  }
+  
+  // Clear loaded route
+  Future<void> _clearRoute() async {
+    if (_routeManager != null) {
+      await _routeManager!.clearRoute();
+      setState(() {
+        _routeLoaded = false;
+      });
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -88,6 +143,12 @@ class _NewMapPageState extends State<NewMapPage> {
         title: const Text('Новая карта'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // "Load Routes" button
+          IconButton(
+            icon: Icon(_routeLoaded ? Icons.directions_boat : Icons.directions_boat_outlined),
+            tooltip: _routeLoaded ? 'Скрыть маршруты' : 'Загрузить маршруты',
+            onPressed: _routeLoaded ? _clearRoute : _loadSampleRoute,
+          ),
           // Only show projection toggle on web platforms
           if (kIsWeb)
             IconButton(
@@ -219,5 +280,12 @@ class _NewMapPageState extends State<NewMapPage> {
         ],
       ),
     );
+  }
+  
+  @override
+  void dispose() {
+    // Dispose route manager
+    _routeManager?.dispose();
+    super.dispose();
   }
 } 
