@@ -39,22 +39,22 @@ class MapStyles {
       'https://api.maptiler.com/maps/0195cf1d-7710-7e7b-a3b3-aaccaf0d7521/style.json?key=$_maptilerKey';
 
   // Protomaps Style URLs  
-  static const protomapsLight =  
-      'https://api.protomaps.com/styles/v2/light.json?key=$_protomapsKey';  
-  static const protomapsDark =  
-      'https://api.protomaps.com/styles/v2/dark.json?key=$_protomapsKey';  
-  static const protomapsGrayscale =  
-      'https://api.protomaps.com/styles/v2/grayscale.json?key=$_protomapsKey';  
-  static const protomapsLiberty =  
-      'https://api.protomaps.com/styles/v2/liberty.json?key=$_protomapsKey';  
-  static const protomapsVintage =  
-      'https://api.protomaps.com/styles/v2/vintage.json?key=$_protomapsKey';  
+ // static const protomapsLight =  
+ //     'https://api.protomaps.com/styles/v2/light.json?key=$_protomapsKey';  
+ // static const protomapsDark =  
+ //     'https://api.protomaps.com/styles/v2/dark.json?key=$_protomapsKey';  
+  //static const protomapsGrayscale =  
+ //     'https://api.protomaps.com/styles/v2/grayscale.json?key=$_protomapsKey';  
+  //static const protomapsLiberty =  
+ //     'https://api.protomaps.com/styles/v2/liberty.json?key=$_protomapsKey';  
+  //static const protomapsVintage =  
+ //     'https://api.protomaps.com/styles/v2/vintage.json?key=$_protomapsKey';  
 
   // Other free style URLs  
-  static const osmLiberty =  
-      'https://maputnik.github.io/osm-liberty/style.json';  
-  static const maplibreDemo =  
-      'https://demotiles.maplibre.org/style.json';  
+ //static const osmLiberty =  
+ //     'https://maputnik.github.io/osm-liberty/style.json';  
+ //static const maplibreDemo =  
+ //     'https://demotiles.maplibre.org/style.json';  
 
   // Display names for MapTiler styles (for UI)  
   static const maptilerStreetsName = 'Maptiler Streets';  
@@ -77,19 +77,19 @@ class MapStyles {
   static const maptilerM1Name = 'M1';
 
   // Display names for Protomaps styles (for UI)  
-  static const protomapsLightName = 'Protomaps Light';  
-  static const protomapsDarkName = 'Protomaps Dark';  
-  static const protomapsGrayscaleName = 'Protomaps Grayscale';  
-  static const protomapsLibertyName = 'Protomaps Liberty';  
-  static const protomapsVintageName = 'Protomaps Vintage';  
+ // static const protomapsLightName = 'Protomaps Light';  
+ // static const protomapsDarkName = 'Protomaps Dark';  
+ // static const protomapsGrayscaleName = 'Protomaps Grayscale';  
+ // static const protomapsLibertyName = 'Protomaps Liberty';  
+ // static const protomapsVintageName = 'Protomaps Vintage';  
 
   // Display names for other styles (for UI)  
-  static const osmLibertyName = 'OSM Liberty';  
-  static const maplibreDemoName = 'MapLibre Demo';  
+ // static const osmLibertyName = 'OSM Liberty';  
+ // static const maplibreDemoName = 'MapLibre Demo';  
 
   // API keys  
   static const _maptilerKey = 'SovRGVsIsJ1GuVGu2753';  
-  static const _protomapsKey = 'a6f9aebb3965458c';  
+ // static const _protomapsKey = 'a6f9aebb3965458c';  
 
   // Get all styles as a map of URL -> display name  
   static Map<String, String> getAllStyles() {  
@@ -115,15 +115,15 @@ class MapStyles {
       maptilerM1: maptilerM1Name,
       
       // Protomaps styles  
-      protomapsLight: protomapsLightName,  
-      protomapsDark: protomapsDarkName,  
-      protomapsGrayscale: protomapsGrayscaleName,  
-      protomapsLiberty: protomapsLibertyName,  
-      protomapsVintage: protomapsVintageName,  
+ //     protomapsLight: protomapsLightName,  
+ //     protomapsDark: protomapsDarkName,  
+ //     protomapsGrayscale: protomapsGrayscaleName,  
+ //     protomapsLiberty: protomapsLibertyName,  
+ //     protomapsVintage: protomapsVintageName,  
       
       // Other styles  
-      osmLiberty: osmLibertyName,  
-      maplibreDemo: maplibreDemoName,  
+ //     osmLiberty: osmLibertyName,  
+ //     maplibreDemo: maplibreDemoName,  
     };  
   }  
   
@@ -152,21 +152,21 @@ class MapStyles {
   }  
   
   // Get Protomaps styles only  
-  static Map<String, String> getProtomapsStyles() {  
-    return {  
-      protomapsLight: protomapsLightName,  
-      protomapsDark: protomapsDarkName,  
-      protomapsGrayscale: protomapsGrayscaleName,  
-      protomapsLiberty: protomapsLibertyName,  
-      protomapsVintage: protomapsVintageName,  
-    };  
-  }  
+ // static Map<String, String> getProtomapsStyles() {  
+ //   return {  
+ //     protomapsLight: protomapsLightName,  
+ //     protomapsDark: protomapsDarkName,  
+ //     protomapsGrayscale: protomapsGrayscaleName,  
+ //     protomapsLiberty: protomapsLibertyName,  
+ //     protomapsVintage: protomapsVintageName,  
+ //   };  
+ // }  
   
   // Get free styles only  
-  static Map<String, String> getFreeStyles() {  
-    return {  
-      osmLiberty: osmLibertyName,  
-      maplibreDemo: maplibreDemoName,  
-    };  
-  }  
+ //static Map<String, String> getFreeStyles() {  
+ //   return {  
+ //     osmLiberty: osmLibertyName,  
+ //     maplibreDemo: maplibreDemoName,  
+ //   };  
+ // }  
 }  

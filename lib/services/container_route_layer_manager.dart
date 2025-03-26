@@ -1,6 +1,6 @@
 import 'dart:convert';
 //import 'dart:io';
-import 'package:flutter/material.dart' show EdgeInsets;
+import 'package:flutter/material.dart' show EdgeInsets, Text, TextStyle, MainAxisSize, CrossAxisAlignment;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:maplibre/maplibre.dart';
 import '../models/container_route.dart';
@@ -128,7 +128,15 @@ class ContainerRouteLayerManager {
           'icon-image': 'departurePortImage',
           'icon-size': 1.5,
           'icon-allow-overlap': true,
-          'text-field': ['get', 'name'],
+          'text-field': [
+            'format',
+            ['get', 'title'],
+            { 'font-scale': 1.0 },
+            //'\n',
+            //{ 'font-scale': 0.8 },
+            // ['get', 'description'],
+            //{ 'font-scale': 0.8 },
+          ],
           //'text-font': ['Open Sans Regular'],
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
@@ -146,7 +154,15 @@ class ContainerRouteLayerManager {
           'icon-image': 'destinationPortImage',
           'icon-size': 1.5,
           'icon-allow-overlap': true,
-          'text-field': ['get', 'name'],
+          'text-field': [
+            'format',
+            ['get', 'title'],
+            { 'font-scale': 1.0 },
+            //'\n',
+            //{ 'font-scale': 0.8 },
+            //['get', 'description'],
+            //{ 'font-scale': 0.8 },
+          ],
           //'text-font': ['Open Sans Regular'],
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
@@ -164,7 +180,15 @@ class ContainerRouteLayerManager {
           'icon-image': 'intermediatePortImage',
           'icon-size': 1.2,
           'icon-allow-overlap': true,
-          'text-field': ['get', 'name'],
+          'text-field': [
+            'format',
+            ['get', 'title'],
+            { 'font-scale': 1.0 },
+            //'\n',
+            //{ 'font-scale': 0.8 },
+            //['get', 'description'],
+            //{ 'font-scale': 0.8 },
+          ],
           //'text-font': ['Open Sans Regular'],
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
@@ -182,7 +206,15 @@ class ContainerRouteLayerManager {
           'icon-image': 'currentPositionImage',
           'icon-size': 1.5,
           'icon-allow-overlap': true,
-          'text-field': ['get', 'name'],
+          'text-field': [
+            'format',
+            ['get', 'title'],
+            { 'font-scale': 1.0 },
+            //'\n',
+            //{ 'font-scale': 0.8 },
+            //['get', 'description'],
+            //{ 'font-scale': 0.8 },
+          ],
           //'text-font': ['Open Sans Regular'],
           'text-offset': [0, 1.5],
           'text-anchor': 'top',
