@@ -187,7 +187,7 @@ class _NewMapPageState extends State<NewMapPage> {
                 }
               },
               children: [
-                const MapScalebar(),
+                const MapScalebar(alignment: Alignment.bottomRight),
                 // Custom SourceAttribution with flexible constraints to handle overflow
                 Positioned(
                   bottom: 0,
