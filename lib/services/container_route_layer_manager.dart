@@ -1,6 +1,6 @@
 import 'dart:convert';
 //import 'dart:io';
-import 'package:flutter/material.dart' show EdgeInsets, Text, TextStyle, MainAxisSize, CrossAxisAlignment;
+import 'package:flutter/material.dart' show EdgeInsets;
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:maplibre/maplibre.dart';
 import '../models/container_route.dart';

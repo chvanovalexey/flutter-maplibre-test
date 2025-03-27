@@ -26,8 +26,8 @@ class RouteManager {
       // Initialize layer manager if not already initialized
       await initialize();
       
-      // Load the GeoJSON data
-      final geojsonData = await GeoJsonLoader.loadFromAssets(filePath);
+      // Load the GeoJSON data with rounded coordinates
+      final geojsonData = await GeoJsonLoader.loadFromAssetsWithRoundedCoordinates(filePath);
       
       // Parse the data into a ContainerRoute object
       _currentRoute = ContainerRoute.fromGeoJson(geojsonData);
@@ -52,8 +52,8 @@ class RouteManager {
       await initialize();
       
       for (final filePath in filePaths) {
-        // Load the GeoJSON data
-        final geojsonData = await GeoJsonLoader.loadFromAssets(filePath);
+        // Load the GeoJSON data with rounded coordinates
+        final geojsonData = await GeoJsonLoader.loadFromAssetsWithRoundedCoordinates(filePath);
         
         // Parse the data into a ContainerRoute object
         final route = ContainerRoute.fromGeoJson(geojsonData);
