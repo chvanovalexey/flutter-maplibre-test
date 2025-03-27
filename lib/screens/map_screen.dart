@@ -10,6 +10,9 @@ import '../services/route_api_service.dart';
 import '../widgets/map_style_dropdown.dart';
 import '../widgets/layer_visibility_control.dart';
 import '../utils/performance_utils.dart';
+import '../services/container_route_layer_manager.dart';
+import '../models/container_route.dart';
+import '../widgets/map_marker_popup.dart';
 
 @immutable
 class MapScreen extends StatefulWidget {
@@ -46,7 +49,18 @@ class _MapScreenState extends State<MapScreen> {
   
   // Add controller for number of routes text field
   final TextEditingController _routeCountController = TextEditingController(text: '5');
+  
+  // Добавляем контроллер для текстового поля фильтрации
+  final TextEditingController _filterController = TextEditingController();
 
+  // Добавляем переменные для отслеживания выбранного маркера и его позиции
+  PortPoint? _selectedMarker;
+  Offset? _markerScreenPosition;
+  // Добавляем ключ для WidgetLayer для принудительного обновления при изменении маркеров
+  final _widgetLayerKey = GlobalKey();
+  // Добавляем ключ для MapLibreMap, чтобы получить его размеры
+  final _mapKey = GlobalKey();
+  
   // Method to toggle between projections
   void _toggleProjection() {
     if (!kIsWeb) return; // Globe projection only supported on web
@@ -74,6 +88,9 @@ class _MapScreenState extends State<MapScreen> {
       // Reset route manager and route loaded state
       _routeManager = null;
       _routeLoaded = false;
+      // Reset selected marker
+      _selectedMarker = null;
+      _markerScreenPosition = null;
     });
   }
   
@@ -109,6 +126,9 @@ class _MapScreenState extends State<MapScreen> {
       await _routeManager!.clearRoute();
       setState(() {
         _routeLoaded = false;
+        // Очищаем выбранный маркер при очистке маршрута
+        _selectedMarker = null;
+        _markerScreenPosition = null;
       });
     }
   }
@@ -212,6 +232,144 @@ class _MapScreenState extends State<MapScreen> {
     }
   }
   
+  // Метод для применения фильтра к слоям карты
+  void _applyFilter(String filterText) {
+    if (_routeManager == null) return;
+    
+    // Если поле фильтра пустое, перезагружаем все данные
+    if (filterText.isEmpty) {
+      _reloadRouteWithoutFilter();
+      return;
+    }
+    
+    try {
+      // Фильтруем тут
+      if (_routeManager!.currentRoute != null) {
+        // Фильтруем все данные маршрута
+        _filterCurrentRoute(filterText.toLowerCase());
+      }
+    } catch (e) {
+      print('Ошибка при применении фильтра: $e');
+    }
+  }
+  
+  // Метод для фильтрации текущего маршрута
+  void _filterCurrentRoute(String filterText) {
+    if (_routeManager == null || _routeManager!.currentRoute == null) return;
+    
+    // Получаем копию текущего маршрута
+    final route = _routeManager!.currentRoute!;
+    
+    // Создаем фильтрованные списки
+    final filteredDeparturePorts = route.departurePorts
+        .where((port) => port.name.toLowerCase().contains(filterText))
+        .toList();
+    
+    final filteredDestinationPorts = route.destinationPorts
+        .where((port) => port.name.toLowerCase().contains(filterText))
+        .toList();
+    
+    final filteredIntermediatePorts = route.intermediatePorts
+        .where((port) => port.name.toLowerCase().contains(filterText))
+        .toList();
+    
+    final filteredCurrentPositions = route.currentPositions
+        .where((port) => port.name.toLowerCase().contains(filterText))
+        .toList();
+    
+    // Создаем новый временный маршрут для отображения фильтрованных данных
+    final filteredRoute = ContainerRoute(
+      departurePorts: filteredDeparturePorts, 
+      destinationPorts: filteredDestinationPorts,
+      intermediatePorts: filteredIntermediatePorts,
+      currentPositions: filteredCurrentPositions,
+      pastRoutes: route.pastRoutes,
+      futureRoutes: route.futureRoutes
+    );
+    
+    // Обновляем источники через RouteManager
+    if (_routeManager != null) {
+      _routeManager!.loadFilteredRoute(filteredRoute);
+    }
+  }
+  
+  // Метод для перезагрузки маршрута без фильтра
+  void _reloadRouteWithoutFilter() {
+    if (_routeManager == null || _routeManager!.currentRoute == null) return;
+    
+    // Просто обновляем все источники с полными данными текущего маршрута
+    _routeManager!.reloadCurrentRoute();
+  }
+  
+  // Метод для обработки нажатия на маркер в WidgetLayer
+  void _onMarkerTap(PortPoint marker) {
+    // Показываем всплывающее окно при клике на маркер
+    setState(() {
+      _selectedMarker = marker;
+    });
+    
+    // Получаем позицию маркера на экране
+    _updateMarkerScreenPosition(marker);
+  }
+  
+  // Метод для обновления позиции маркера на экране
+  Future<void> _updateMarkerScreenPosition(PortPoint marker) async {
+    if (_mapController == null) return;
+    
+    try {
+      // Преобразуем географические координаты в координаты экрана
+      final screenPosition = await _mapController!.toScreenLocation(
+        Position(marker.coordinates[0], marker.coordinates[1])
+      );
+      
+      // Обновляем позицию всплывающего окна
+      setState(() {
+        _markerScreenPosition = screenPosition;
+      });
+    } catch (e) {
+      print('Ошибка при определении позиции маркера на экране: $e');
+    }
+  }
+  
+  // Метод для создания списка маркеров для WidgetLayer
+  List<Marker> _createMarkers() {
+    if (_routeManager?.currentRoute == null) {
+      return [];
+    }
+    
+    final currentRoute = _routeManager!.currentRoute!;
+    final List<Marker> markers = [];
+    
+    // Функция добавления маркеров определенного типа с соответствующей иконкой
+    void addMarkersWithIcon(List<PortPoint> ports, IconData icon, Color color) {
+      for (final port in ports) {
+        markers.add(
+          Marker(
+            point: Position(port.coordinates[0], port.coordinates[1]),
+            size: const Size(30, 30),
+            alignment: Alignment.bottomCenter,
+            child: GestureDetector(
+              onTap: () => _onMarkerTap(port),
+              child: Icon(
+                icon,
+                color: color,
+                size: 30,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+    
+    // Добавляем маркеры по типам с разными иконками
+    addMarkersWithIcon(currentRoute.departurePorts, Icons.trip_origin, Colors.green);
+    addMarkersWithIcon(currentRoute.destinationPorts, Icons.place, Colors.red);
+    addMarkersWithIcon(currentRoute.intermediatePorts, Icons.anchor, Colors.blue);
+    addMarkersWithIcon(currentRoute.currentPositions, Icons.directions_boat, Colors.orange);
+    
+    return markers;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -219,6 +377,25 @@ class _MapScreenState extends State<MapScreen> {
         title: const Text('Карта MapLibre'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Добавляем поле для фильтрации
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+              child: TextField(
+                controller: _filterController,
+                decoration: const InputDecoration(
+                  hintText: 'Фильтр по названию',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  isDense: true,
+                  filled: true,
+                  fillColor: Colors.white,
+                ),
+                onChanged: _applyFilter,
+                style: const TextStyle(fontSize: 14),
+              ),
+            ),
+          ),
           // Add route count text field
           Container(
             width: 60,
@@ -301,7 +478,7 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
       body: MapLibreMap(
-        key: ValueKey(_currentMapStyle), // Add key based on style to force rebuild
+        key: _mapKey, // Добавляем ключ для доступа к размерам карты
         options: MapOptions(
           initCenter: Position(
             AppConstants.initialLongitude, 
@@ -329,6 +506,13 @@ class _MapScreenState extends State<MapScreen> {
           }
         },
         children: [
+          // Добавляем WidgetLayer для интерактивных маркеров
+          if (_routeLoaded && _routeManager?.currentRoute != null) 
+            WidgetLayer(
+              key: _widgetLayerKey,
+              allowInteraction: true, // Разрешаем взаимодействие с маркерами
+              markers: _createMarkers(),
+            ),
           const MapScalebar(alignment: Alignment.bottomRight),
           // Custom SourceAttribution with flexible constraints to handle overflow
           Positioned(
@@ -355,6 +539,23 @@ class _MapScreenState extends State<MapScreen> {
               styleUrl: _currentMapStyle,
             ),
           ),
+          // Добавляем всплывающее окно при выборе маркера
+          if (_selectedMarker != null && _markerScreenPosition != null)
+            Positioned(
+              left: _markerScreenPosition!.dx - 100, // Центрируем относительно маркера
+              top: _markerScreenPosition!.dy - 120, // Размещаем над маркером
+              width: 200, // Фиксированная ширина для попапа
+              child: MapMarkerPopup(
+                title: _selectedMarker!.name,
+                description: _selectedMarker!.properties['description'] as String? ?? '',
+                onClose: () {
+                  setState(() {
+                    _selectedMarker = null;
+                    _markerScreenPosition = null;
+                  });
+                },
+              ),
+            ),
         ],
       ),
     );
@@ -365,8 +566,9 @@ class _MapScreenState extends State<MapScreen> {
     // Dispose route manager
     _routeManager?.dispose();
     
-    // Dispose text controller
+    // Dispose text controllers
     _routeCountController.dispose();
+    _filterController.dispose();
     
     super.dispose();
   }

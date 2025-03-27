@@ -178,4 +178,39 @@ class RouteManager {
       await _layerManager!.setLayerVisibility(layerId, isVisible);
     }
   }
+  
+  /// Загрузить отфильтрованный маршрут (для поддержки фильтрации)
+  Future<void> loadFilteredRoute(ContainerRoute filteredRoute) async {
+    try {
+      // Initialize layer manager if not already initialized
+      await initialize();
+      
+      // Update the map sources with the filtered route data
+      if (_layerManager != null) {
+        await _layerManager!.updateSourcesFromRoute(filteredRoute);
+      }
+    } catch (e) {
+      print('Error loading filtered route: $e');
+      rethrow;
+    }
+  }
+  
+  /// Перезагрузить текущий маршрут (для сброса фильтра)
+  Future<void> reloadCurrentRoute() async {
+    try {
+      // Проверяем, есть ли текущий маршрут
+      if (_currentRoute == null) return;
+      
+      // Initialize layer manager if not already initialized
+      await initialize();
+      
+      // Update the map sources with the current route data
+      if (_layerManager != null) {
+        await _layerManager!.updateSourcesFromRoute(_currentRoute!);
+      }
+    } catch (e) {
+      print('Error reloading current route: $e');
+      rethrow;
+    }
+  }
 } 
