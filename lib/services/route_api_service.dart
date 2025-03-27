@@ -86,6 +86,7 @@ class RouteApiService {
     try {
       // Generate random route data
       final routeData = generateRandomRouteData();
+      print(jsonEncode(routeData));
       
       // Make API request
       final response = await http.post(
@@ -97,6 +98,7 @@ class RouteApiService {
       // Check if request was successful
       if (response.statusCode == 200) {
         // Parse and return the response
+        print(response.body);
         return jsonDecode(response.body);
       } else {
         throw Exception('Failed to generate route: ${response.statusCode} - ${response.body}');
@@ -123,17 +125,22 @@ class RouteApiService {
     return generatedRoutes;
   }
   
-  /// Helper method to randomize coordinates within a reasonable range
+  /// Helper method to randomize coordinates within the full valid range
   static List<dynamic> _getRandomizedCoordinates(double baseLng, double baseLat) {
-    // Random offset between -2 and 2 degrees
-    final random = Random();
-    final lngOffset = (random.nextDouble() * 4) - 2;
-    final latOffset = (random.nextDouble() * 4) - 2;
+    // Константы для допустимых диапазонов
+    const double MIN_LATITUDE = -85.0;  // Стандартное ограничение для морских маршрутов
+    const double MAX_LATITUDE = 85.0;   // Стандартное ограничение для морских маршрутов
+    const double MIN_LONGITUDE = -180.0;
+    const double MAX_LONGITUDE = 180.0;
     
-    // Make sure latitude stays within valid range (-90 to 90)
-    final newLat = max(-85.0, min(85.0, baseLat + latOffset));
-    // Make sure longitude stays within valid range (-180 to 180)
-    final newLng = (baseLng + lngOffset + 180.0) % 360.0 - 180.0;
+    final random = Random();
+    
+    // Генерируем полностью случайные координаты в допустимом диапазоне
+    // Для широты: от -85 до 85 градусов
+    final newLat = MIN_LATITUDE + (random.nextDouble() * (MAX_LATITUDE - MIN_LATITUDE));
+    
+    // Для долготы: от -180 до 180 градусов
+    final newLng = MIN_LONGITUDE + (random.nextDouble() * (MAX_LONGITUDE - MIN_LONGITUDE));
     
     return [newLng, newLat];
   }

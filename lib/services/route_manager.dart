@@ -134,9 +134,14 @@ class RouteManager {
       _currentRoute!.intermediatePorts.addAll(route.intermediatePorts);
       _currentRoute!.currentPositions.addAll(route.currentPositions);
       
-      // Add route segments
-      _currentRoute!.pastRoutes.addAll(route.pastRoutes);
-      _currentRoute!.futureRoutes.addAll(route.futureRoutes);
+      // Добавляем сегменты маршрутов с проверкой на пересечение 180-го меридиана
+      for (final segment in route.pastRoutes) {
+        _currentRoute!.pastRoutes.add(segment);
+      }
+      
+      for (final segment in route.futureRoutes) {
+        _currentRoute!.futureRoutes.add(segment);
+      }
       
       // Update the sources with the merged data
       await _layerManager!.updateSourcesFromRoute(_currentRoute!);

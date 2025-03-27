@@ -229,6 +229,10 @@ class ContainerRouteLayerManager {
       LineStyleLayer(
         id: pastRouteLayerId,
         sourceId: pastRouteSourceId,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
         paint: {
           'line-color': ['get', 'stroke'],
           'line-width': 4,
@@ -241,6 +245,10 @@ class ContainerRouteLayerManager {
       LineStyleLayer(
         id: futureRouteLayerId,
         sourceId: futureRouteSourceId,
+        layout: {
+          'line-cap': 'round',
+          'line-join': 'round',
+        },
         paint: {
           'line-color': ['get', 'stroke'],
           'line-width': 2,
@@ -311,14 +319,75 @@ class ContainerRouteLayerManager {
     String sourceId,
     List<Map<String, dynamic>> features,
   ) async {
+    // Обрабатываем линии, пересекающие 180-й меридиан
+    final processedFeatures = features.map((feature) {
+      // Извлекаем GeoJSON объект для обработки
+      final Map<String, dynamic> geometry = feature['geometry'] as Map<String, dynamic>;
+      final Map<String, dynamic> properties = feature['properties'] as Map<String, dynamic>;
+      
+      // Если это LineString, проверяем на пересечение 180-го меридиана
+      if (geometry['type'] == 'LineString') {
+        final List<List<double>> coordinates = List<List<double>>.from(
+          (geometry['coordinates'] as List).map((coord) => List<double>.from(coord))
+        );
+        
+        // Простой и надежный подход для решения проблемы 180-го меридиана
+        for (int i = 0; i < coordinates.length - 1; i++) {
+          double lng1 = coordinates[i][0];
+          double lng2 = coordinates[i + 1][0];
+          
+          // Если разница больше 180 градусов, значит линия пересекает антимеридиан
+          if ((lng2 - lng1).abs() > 180) {
+            // Преобразуем координаты в MultiLineString
+            List<List<List<double>>> multiCoords = [];
+            
+            // Первая часть линии до пересечения
+            List<List<double>> part1 = coordinates.sublist(0, i + 1);
+            
+            // Добавляем точку пересечения с меридианом
+            double lat1 = coordinates[i][1];
+            double lat2 = coordinates[i + 1][1];
+            double t = (lng1 < lng2) ? 
+                (180 - lng1) / ((lng2 > lng1 ? lng2 : lng2 + 360) - lng1) : 
+                (-180 - lng1) / ((lng2 < lng1 ? lng2 : lng2 - 360) - lng1);
+            double latAtMeridian = lat1 + t * (lat2 - lat1);
+            
+            // Точка на меридиане
+            double meridianLng = (lng1 < lng2) ? 180 : -180;
+            part1.add([meridianLng, latAtMeridian]);
+            multiCoords.add(part1);
+            
+            // Вторая часть линии после пересечения
+            List<List<double>> part2 = [];
+            part2.add([(meridianLng == 180) ? -180 : 180, latAtMeridian]);
+            part2.addAll(coordinates.sublist(i + 1));
+            multiCoords.add(part2);
+            
+            // Возвращаем MultiLineString вместо LineString
+            return {
+              'type': 'Feature',
+              'geometry': {
+                'type': 'MultiLineString',
+                'coordinates': multiCoords,
+              },
+              'properties': properties,
+            };
+          }
+        }
+      }
+      
+      // Если изменения не требуются, возвращаем исходный объект
+      return feature;
+    }).toList();
+
     final featureCollection = {
       'type': 'FeatureCollection',
-      'features': features,
+      'features': processedFeatures,
     };
 
     final geoJson = jsonEncode(featureCollection);
 
-    // Update the GeoJSON source with new data
+    // Обновляем источник GeoJSON
     await _style.updateGeoJsonSource(id: sourceId, data: geoJson);
   }
 
@@ -336,6 +405,9 @@ class ContainerRouteLayerManager {
 
   /// Convert a route segment to a GeoJSON feature
   Map<String, dynamic> _segmentToFeature(RouteSegment segment) {
+    // В данном случае мы возвращаем оригинальные координаты сегмента,
+    // так как _updateLineSource будет обрабатывать пересечение 180-го меридиана
+    // и создавать MultiLineString при необходимости
     return {
       'type': 'Feature',
       'geometry': {
@@ -351,56 +423,138 @@ class ContainerRouteLayerManager {
     MapController controller,
     ContainerRoute route,
   ) async {
-    // Collect all coordinates from points
+    // Собираем все точки маршрута
     final List<Position> allPositions = [];
 
-    // Add departure ports
+    // Добавляем точки портов
     for (final port in route.departurePorts) {
       allPositions.add(Position(port.coordinates[0], port.coordinates[1]));
     }
-
-    // Add destination ports
     for (final port in route.destinationPorts) {
       allPositions.add(Position(port.coordinates[0], port.coordinates[1]));
     }
-
-    // Add intermediate ports
     for (final port in route.intermediatePorts) {
       allPositions.add(Position(port.coordinates[0], port.coordinates[1]));
     }
-
-    // Add current positions
     for (final port in route.currentPositions) {
       allPositions.add(Position(port.coordinates[0], port.coordinates[1]));
     }
 
-    // If we have positions, fit the map to them
+    // Проверяем, есть ли у нас маршруты, пересекающие 180-й меридиан
+    bool hasCrossAntimeridianRoutes = false;
+    
+    // Проверка маршрутов на пересечение антимеридиана
+    for (final segment in [...route.pastRoutes, ...route.futureRoutes]) {
+      if (segment.coordinates.length < 2) continue;
+      
+      for (int i = 0; i < segment.coordinates.length - 1; i++) {
+        final double lng1 = segment.coordinates[i][0];
+        final double lng2 = segment.coordinates[i + 1][0];
+        
+        if ((lng2 - lng1).abs() > 180) {
+          hasCrossAntimeridianRoutes = true;
+          break;
+        }
+      }
+      
+      if (hasCrossAntimeridianRoutes) break;
+    }
+
+    // Добавляем координаты маршрутов с учетом возможных пересечений
+    for (final segment in [...route.pastRoutes, ...route.futureRoutes]) {
+      if (hasCrossAntimeridianRoutes) {
+        // Если есть пересечения, используем скорректированные координаты
+        // которые перенесены в соответствующие полушария
+        final adjusted = segment.adjustForAntimeridian();
+        for (final coord in adjusted.coordinates) {
+          allPositions.add(Position(coord[0], coord[1]));
+        }
+      } else {
+        // Если пересечений нет, используем оригинальные координаты
+        for (final coord in segment.coordinates) {
+          allPositions.add(Position(coord[0], coord[1]));
+        }
+      }
+    }
+
+    // Если у нас есть позиции, устанавливаем соответствующие границы карты
     if (allPositions.isNotEmpty) {
-      // Calculate bounds
+      // Рассчитываем границы
       double minLng = double.infinity;
       double maxLng = -double.infinity;
       double minLat = double.infinity;
       double maxLat = -double.infinity;
 
       for (final position in allPositions) {
-        // Explicitly cast to double to avoid type errors
         final double lng = position.lng.toDouble();
         final double lat = position.lat.toDouble();
-        if (lng < minLng) minLng = lng;
-        if (lng > maxLng) maxLng = lng;
+        
+        // Обновляем границы широты
         if (lat < minLat) minLat = lat;
         if (lat > maxLat) maxLat = lat;
+        
+        // Обновляем границы долготы только если это не пересечение антимеридиана
+        // или если мы используем скорректированные координаты
+        if (!hasCrossAntimeridianRoutes || (lng >= -180 && lng <= 180)) {
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+        }
       }
-
-      // Create the bounds for the map to fit
+      
+      // Проверяем на случай, если корректировка координат не помогла
+      // и границы все еще слишком широкие
+      if (maxLng - minLng > 300 || hasCrossAntimeridianRoutes) {
+        // Делим координаты на две группы: восточное и западное полушарие
+        List<Position> westPositions = [];
+        List<Position> eastPositions = [];
+        
+        for (final position in allPositions) {
+          final double lng = position.lng.toDouble();
+          
+          // Игнорируем точки, которые могут быть артефактами корректировки
+          if (lng < -180 || lng > 180) continue;
+          
+          if (lng < 0) {
+            westPositions.add(position);
+          } else {
+            eastPositions.add(position);
+          }
+        }
+        
+        // Выбираем полушарие с большим количеством точек
+        List<Position> dominantPositions = 
+            (westPositions.length > eastPositions.length) ? westPositions : eastPositions;
+        
+        // Если мы не нашли доминирующее полушарие, используем оригинальные координаты
+        if (dominantPositions.isEmpty) {
+          dominantPositions = allPositions;
+        }
+        
+        // Пересчитываем границы только для доминирующего полушария
+        minLng = double.infinity;
+        maxLng = -double.infinity;
+        minLat = double.infinity;
+        maxLat = -double.infinity;
+        
+        for (final position in dominantPositions) {
+          final double lng = position.lng.toDouble();
+          final double lat = position.lat.toDouble();
+          
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+        }
+      }
+      
+      // Создаем границы карты и устанавливаем их
       final bounds = LngLatBounds(
         longitudeWest: minLng,
         longitudeEast: maxLng,
         latitudeSouth: minLat,
         latitudeNorth: maxLat,
       );
-
-      // Fit the map to the bounds
+      
       await controller.fitBounds(
         bounds: bounds,
         padding: const EdgeInsets.all(50),
@@ -541,6 +695,10 @@ class ContainerRouteLayerManager {
               LineStyleLayer(
                 id: pastRouteLayerId,
                 sourceId: pastRouteSourceId,
+                layout: {
+                  'line-cap': 'round',
+                  'line-join': 'round',
+                },
                 paint: {
                   'line-color': ['get', 'stroke'],
                   'line-width': 4,
@@ -554,6 +712,10 @@ class ContainerRouteLayerManager {
               LineStyleLayer(
                 id: futureRouteLayerId,
                 sourceId: futureRouteSourceId,
+                layout: {
+                  'line-cap': 'round',
+                  'line-join': 'round',
+                },
                 paint: {
                   'line-color': ['get', 'stroke'],
                   'line-width': 2,

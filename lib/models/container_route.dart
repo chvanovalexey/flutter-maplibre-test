@@ -83,6 +83,33 @@ class ContainerRoute {
         } else if (segmentType == 'future') {
           futureRoutes.add(routeSegment);
         }
+      } else if (geometry['type'] == 'MultiLineString') {
+        // Для маршрутов типа MultiLineString (когда линия пересекает 180-й меридиан)
+        final List<List<List<double>>> multiCoordinates = (geometry['coordinates'] as List)
+            .map((lineCoords) =>
+              (lineCoords as List).map((coord) =>
+                (coord as List).map((c) => (c as num).toDouble()).toList()
+              ).toList()
+            )
+            .toList();
+        
+        // Создаем отдельный сегмент маршрута для каждой линии в MultiLineString
+        for (var coordinates in multiCoordinates) {
+          final routeSegment = RouteSegment(
+            from: properties['from'] as String? ?? '',
+            to: properties['to'] as String? ?? '',
+            coordinates: coordinates,
+            properties: properties,
+          );
+          
+          // Категоризируем по типу сегмента
+          final segmentType = properties['segmentType'] as String? ?? '';
+          if (segmentType == 'past') {
+            pastRoutes.add(routeSegment);
+          } else if (segmentType == 'future') {
+            futureRoutes.add(routeSegment);
+          }
+        }
       }
     }
     
@@ -123,4 +150,70 @@ class RouteSegment {
     required this.coordinates,
     this.properties = const {},
   });
+  
+  /// Возвращает новый RouteSegment с обработанными координатами для корректного
+  /// отображения линий, пересекающих 180-й меридиан
+  RouteSegment adjustForAntimeridian() {
+    // Если у нас нет как минимум двух точек для линии, возвращаем сегмент без изменений
+    if (coordinates.length < 2) {
+      return this;
+    }
+
+    // Создаем новый список координат для обработки
+    List<List<double>> adjustedCoordinates = [];
+    
+    // Проходим по всем сегментам линии (парам последовательных точек)
+    for (int i = 0; i < coordinates.length - 1; i++) {
+      double lng1 = coordinates[i][0];
+      double lat1 = coordinates[i][1];
+      double lng2 = coordinates[i + 1][0];
+      double lat2 = coordinates[i + 1][1];
+      
+      // Добавляем первую точку сегмента
+      adjustedCoordinates.add([lng1, lat1]);
+      
+      // Проверяем, пересекает ли сегмент 180-й меридиан
+      // Если разница долгот больше 180 градусов, значит сегмент пересекает 180-й меридиан
+      if ((lng2 - lng1).abs() > 180) {
+        // Определяем направление пересечения (с запада на восток или с востока на запад)
+        double westLng, eastLng;
+        if (lng1 < lng2) {
+          // lng1 на западе от -180, lng2 на востоке от +180
+          westLng = lng1;
+          eastLng = lng2;
+        } else {
+          // lng1 на востоке от +180, lng2 на западе от -180
+          westLng = lng2;
+          eastLng = lng1;
+        }
+        
+        // Нормализуем восточную долготу, чтобы она стала < -180
+        eastLng -= 360;
+        
+        // Вычисляем широту в точке пересечения с меридианом -180
+        // Используем линейную интерполяцию
+        double t = (-180 - westLng) / (eastLng - westLng);
+        double latAtMinus180 = lat1 + t * (lat2 - lat1);
+        
+        // Добавляем точку пересечения с меридианом -180
+        adjustedCoordinates.add([-180, latAtMinus180]);
+        
+        // Вычисляем широту в точке пересечения с меридианом +180
+        double latAt180 = latAtMinus180; // Та же широта, т.к. -180 и +180 - это один и тот же меридиан
+        
+        // Добавляем точку пересечения с меридианом +180
+        adjustedCoordinates.add([180, latAt180]);
+      }
+    }
+    
+    // Добавляем последнюю точку линии
+    adjustedCoordinates.add(coordinates.last);
+    
+    return RouteSegment(
+      from: from,
+      to: to,
+      coordinates: adjustedCoordinates,
+      properties: properties,
+    );
+  }
 } 
