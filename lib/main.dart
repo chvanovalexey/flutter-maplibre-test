@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';  
 import 'package:firebase_core/firebase_core.dart';  
-import 'new_map_page.dart';
+import 'screens/map_screen.dart';
 
 void main() async {  
   // Обязательно для инициализации Firebase  
@@ -67,7 +67,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const NewMapPage()),
+                  MaterialPageRoute(builder: (context) => const MapScreen()),
                 );
               },
               child: const Text('Открыть карту'),

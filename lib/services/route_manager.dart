@@ -1,7 +1,6 @@
 import 'package:maplibre/maplibre.dart';
 import 'dart:convert';
 import '../models/container_route.dart';
-import '../services/geojson_loader.dart';
 import '../services/container_route_layer_manager.dart';
 
 /// Manager for loading and displaying container routes on the map
@@ -17,31 +16,6 @@ class RouteManager {
     if (_layerManager == null && _mapController.style != null) {
       _layerManager = ContainerRouteLayerManager(_mapController.style!);
       await _layerManager!.initializeSources();
-    }
-  }
-  
-  /// Load a container route from a GeoJSON file
-  Future<void> loadRouteFromFile(String filePath) async {
-    try {
-      // Initialize layer manager if not already initialized
-      await initialize();
-      
-      // Load the GeoJSON data with rounded coordinates
-      final geojsonData = await GeoJsonLoader.loadFromAssetsWithRoundedCoordinates(filePath);
-      
-      // Parse the data into a ContainerRoute object
-      _currentRoute = ContainerRoute.fromGeoJson(geojsonData);
-      
-      // Update the map sources with the route data
-      if (_layerManager != null && _currentRoute != null) {
-        await _layerManager!.updateSourcesFromRoute(_currentRoute!);
-        
-        // Fit the map to the route
-        await _layerManager!.fitToRoute(_mapController, _currentRoute!);
-      }
-    } catch (e) {
-      print('Error loading route from file: $e');
-      rethrow;
     }
   }
 
@@ -81,38 +55,6 @@ class RouteManager {
       
     } catch (e) {
       print('Error adding GeoJSON data to existing sources: $e');
-      rethrow;
-    }
-  }
-
-  /// Load multiple GeoJSON files and add their data to existing sources
-  Future<void> loadMultipleGeoJsonFiles(List<String> filePaths) async {
-    try {
-      // Initialize layer manager if not already initialized
-      await initialize();
-      
-      for (final filePath in filePaths) {
-        // Load the GeoJSON data with rounded coordinates
-        final geojsonData = await GeoJsonLoader.loadFromAssetsWithRoundedCoordinates(filePath);
-        
-        // Parse the data into a ContainerRoute object
-        final route = ContainerRoute.fromGeoJson(geojsonData);
-        
-        // Add the route data to existing sources
-        if (_layerManager != null) {
-          await _addRouteDataToSources(route);
-        }
-        
-        // Print the contents of each source after adding this file
-        await printSourceContents();
-      }
-      
-      // Fit the map to whatever is currently loaded
-      if (_layerManager != null && _currentRoute != null) {
-        await _layerManager!.fitToRoute(_mapController, _currentRoute!);
-      }
-    } catch (e) {
-      print('Error loading multiple GeoJSON files: $e');
       rethrow;
     }
   }

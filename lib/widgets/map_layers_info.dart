@@ -201,21 +201,22 @@ class _LayersInfoPainter extends CustomPainter {
     // Draw title
     _drawText(canvas, 'Map Layers', textStyle, 5, 15);
     
-    // Draw total layers count
+    // Draw total layers
     _drawText(canvas, 'Total: $totalLayers', textStyle, 5, 35);
     
-    // Draw layer types and counts
-    int y = 55;
-    layerTypes.forEach((type, count) {
-      _drawText(canvas, '$type: $count', textStyle, 5, y.toDouble());
+    // Draw each layer type count
+    var y = 55.0;
+    for (var entry in layerTypes.entries) {
+      final text = '${entry.key}: ${entry.value}';
+      _drawText(canvas, text, textStyle, 5, y);
       y += 20;
-    });
+    }
   }
-
+  
   void _drawText(Canvas canvas, String text, TextStyle? style, double x, double y) {
+    final textSpan = TextSpan(text: text, style: style);
     final textPainter = TextPainter(
-      text: TextSpan(style: style, text: text),
-      textAlign: TextAlign.left,
+      text: textSpan,
       textDirection: TextDirection.ltr,
     );
     textPainter.layout();
@@ -223,9 +224,11 @@ class _LayersInfoPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _LayersInfoPainter oldDelegate) =>
-      totalLayers != oldDelegate.totalLayers ||
-      layerTypes.toString() != oldDelegate.layerTypes.toString() ||
-      isLoading != oldDelegate.isLoading ||
-      hasError != oldDelegate.hasError;
+  bool shouldRepaint(_LayersInfoPainter oldDelegate) {
+    return totalLayers != oldDelegate.totalLayers ||
+           layerTypes != oldDelegate.layerTypes ||
+           isLoading != oldDelegate.isLoading ||
+           hasError != oldDelegate.hasError ||
+           errorMessage != oldDelegate.errorMessage;
+  }
 } 

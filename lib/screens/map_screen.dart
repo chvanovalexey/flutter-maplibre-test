@@ -1,24 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:maplibre/maplibre.dart';
-import 'map_styles.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
-import 'performance_overlay.dart';
-import 'map_layers_info.dart';
-import 'services/route_manager.dart';
-import 'services/route_api_service.dart';
-import 'models/container_route.dart';
-import 'widgets/map_style_dropdown.dart';
-import 'widgets/layer_visibility_control.dart';
+import '../config/map_styles.dart';
+import '../config/app_constants.dart';
+import '../widgets/performance_overlay.dart';
+import '../widgets/map_layers_info.dart';
+import '../services/route_manager.dart';
+import '../services/route_api_service.dart';
+import '../widgets/map_style_dropdown.dart';
+import '../widgets/layer_visibility_control.dart';
+import '../utils/performance_utils.dart';
 
 @immutable
-class NewMapPage extends StatefulWidget {
-  const NewMapPage({super.key});
+class MapScreen extends StatefulWidget {
+  const MapScreen({super.key});
 
   @override
-  State<NewMapPage> createState() => _NewMapPageState();
+  State<MapScreen> createState() => _MapScreenState();
 }
 
-class _NewMapPageState extends State<NewMapPage> {
+class _MapScreenState extends State<MapScreen> {
   // Add controller to access map methods
   MapController? _mapController;
   
@@ -40,17 +41,11 @@ class _NewMapPageState extends State<NewMapPage> {
   // Add state variable to track if route is loaded
   bool _routeLoaded = false;
   
-  // Add state variable to track if bulk load is in progress
-  bool _isLoadingBulk = false;
-  
   // Add state variable to track if API route generation is in progress
   bool _isGeneratingApiRoutes = false;
   
   // Add controller for number of routes text field
   final TextEditingController _routeCountController = TextEditingController(text: '5');
-  
-  // Key to force rebuild the map when style changes
- // final _mapKey = GlobalKey();
 
   // Method to toggle between projections
   void _toggleProjection() {
@@ -99,38 +94,12 @@ class _NewMapPageState extends State<NewMapPage> {
     }
   }
   
-  // Load sample route
-  Future<void> _loadSampleRoute() async {
-    try {
-      if (_mapController != null) {
-        // Initialize route manager if needed
-        _routeManager ??= RouteManager(_mapController!);
-        
-        // Load the sample route
-        await _routeManager!.loadRouteFromFile('assets/sample-geojson/sample-resp.geojson');
-        
-        // Update state
-        setState(() {
-          _routeLoaded = true;
-        });
-      }
-    } catch (e) {
-      // Show error dialog
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Error Loading Route'),
-            content: Text('Failed to load route: $e'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
+  // Toggle routes visibility
+  Future<void> _toggleRoutes() async {
+    if (_routeLoaded) {
+      await _clearRoute();
+    } else {
+      await _generateAndAddApiRoutes();
     }
   }
   
@@ -141,58 +110,6 @@ class _NewMapPageState extends State<NewMapPage> {
       setState(() {
         _routeLoaded = false;
       });
-    }
-  }
-  
-  // Load multiple GeoJSON files (from 1.geojson to 50.geojson)
-  Future<void> _loadMultipleGeoJsonFiles() async {
-    if (_isLoadingBulk) return;
-    
-    try {
-      setState(() {
-        _isLoadingBulk = true;
-      });
-      
-      if (_mapController != null) {
-        // Initialize route manager if needed
-        _routeManager ??= RouteManager(_mapController!);
-        
-        // Create a list of file paths from 1.geojson to 50.geojson
-        final filePaths = List.generate(
-          50, 
-          (index) => 'assets/sample-geojson/${index + 1}.geojson'
-        );
-        
-        // Load all files and add to existing sources
-        await _routeManager!.loadMultipleGeoJsonFiles(filePaths);
-        
-        // Update state
-        setState(() {
-          _routeLoaded = true;
-          _isLoadingBulk = false;
-        });
-      }
-    } catch (e) {
-      // Show error dialog
-      if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Error Loading Multiple Files'),
-            content: Text('Failed to load GeoJSON files: $e'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-        
-        setState(() {
-          _isLoadingBulk = false;
-        });
-      }
     }
   }
   
@@ -212,65 +129,65 @@ class _NewMapPageState extends State<NewMapPage> {
         _isGeneratingApiRoutes = true;
       });
       
-      if (_mapController != null) {
-        // Initialize route manager if needed
-        _routeManager ??= RouteManager(_mapController!);
-        
-        // Parse the route count from the text field
-        final int routeCount;
-        try {
-          routeCount = int.parse(_routeCountController.text);
-        } catch (e) {
-          // Show error dialog for invalid input
-          if (mounted) {
-            showDialog(
-              context: context,
-              builder: (context) => AlertDialog(
-                title: const Text('Invalid Input'),
-                content: const Text('Please enter a valid number of routes.'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('OK'),
-                  ),
-                ],
-              ),
-            );
-          }
-          setState(() {
-            _isGeneratingApiRoutes = false;
-          });
-          return;
-        }
-        
-        // Generate routes via API
-        final routes = await RouteApiService.generateMultipleRoutes(routeCount);
-        
-        // Process each route and add to map
-        for (final route in routes) {
-          // Create a ContainerRoute object from the API response
-          final containerRoute = ContainerRoute.fromGeoJson(route);
+      // Замеряем общее время генерации и добавления маршрутов
+      await PerformanceUtils.measureExecution('generate_and_add_routes', () async {
+        if (_mapController != null) {
+          // Initialize route manager if needed
+          _routeManager ??= RouteManager(_mapController!);
           
-          // Add the route data to existing sources
-          if (_routeManager != null) {
-            // Use the public method in the RouteManager class
-            // We need to load the first route properly
-            if (!_routeLoaded) {
-              await _routeManager!.loadRouteFromGeoJson(route);
-              _routeLoaded = true;
-            } else {
-              // For subsequent routes, we add them to existing data
-              await _routeManager!.addGeoJsonToExistingSources(route);
+          // Parse the route count from the text field
+          final int routeCount;
+          try {
+            routeCount = int.parse(_routeCountController.text);
+          } catch (e) {
+            // Show error dialog for invalid input
+            if (mounted) {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Invalid Input'),
+                  content: const Text('Please enter a valid number of routes.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('OK'),
+                    ),
+                  ],
+                ),
+              );
             }
+            return;
           }
+          
+          // Generate routes via API
+          final routes = await RouteApiService.generateMultipleRoutes(routeCount);
+          
+          // Замеряем время обработки и отображения маршрутов
+          await PerformanceUtils.measureExecution('process_routes', () async {
+            // Process each route and add to map
+            for (final route in routes) {
+              // Add the route data to existing sources
+              if (_routeManager != null) {
+                // Use the public method in the RouteManager class
+                // We need to load the first route properly
+                if (!_routeLoaded) {
+                  await _routeManager!.loadRouteFromGeoJson(route);
+                  _routeLoaded = true;
+                } else {
+                  // For subsequent routes, we add them to existing data
+                  await _routeManager!.addGeoJsonToExistingSources(route);
+                }
+              }
+            }
+          });
         }
-        
-        // Update state
-        setState(() {
-          _routeLoaded = true;
-          _isGeneratingApiRoutes = false;
-        });
-      }
+      });
+      
+      // Update state
+      setState(() {
+        _routeLoaded = true;
+        _isGeneratingApiRoutes = false;
+      });
     } catch (e) {
       // Show error dialog
       if (mounted) {
@@ -299,7 +216,7 @@ class _NewMapPageState extends State<NewMapPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Новая карта'),
+        title: const Text('Карта MapLibre'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           // Add route count text field
@@ -332,17 +249,11 @@ class _NewMapPageState extends State<NewMapPage> {
           LayerVisibilityControl(
             onLayerVisibilityChanged: _handleLayerVisibilityChange,
           ),
-          // "Load Routes" button
+          // "Toggle Routes" button
           IconButton(
             icon: Icon(_routeLoaded ? Icons.directions_boat : Icons.directions_boat_outlined),
-            tooltip: _routeLoaded ? 'Скрыть маршруты' : 'Загрузить маршруты',
-            onPressed: _routeLoaded ? _clearRoute : _loadSampleRoute,
-          ),
-          // "Load Multiple GeoJSON Files" button
-          IconButton(
-            icon: Icon(_isLoadingBulk ? Icons.sync : Icons.file_upload),
-            tooltip: 'Загрузить 50 GeoJSON файлов',
-            onPressed: _isLoadingBulk ? null : _loadMultipleGeoJsonFiles,
+            tooltip: _routeLoaded ? 'Скрыть маршруты' : 'Показать маршруты',
+            onPressed: _toggleRoutes,
           ),
           // "Print Source Contents" button
           IconButton(
@@ -392,11 +303,13 @@ class _NewMapPageState extends State<NewMapPage> {
       body: MapLibreMap(
         key: ValueKey(_currentMapStyle), // Add key based on style to force rebuild
         options: MapOptions(
-          initCenter: Position(37.62, 55.75), // Координаты Москвы (lng, lat)
-          initZoom: 0,
+          initCenter: Position(
+            AppConstants.initialLongitude, 
+            AppConstants.initialLatitude
+          ), // Координаты из констант
+          initZoom: AppConstants.initialZoom,
           initStyle: _currentMapStyle, // Use current style from state
           // Для Android используем TextureMode, что может влиять на производительность
-          // Отключение TextureMode на Android может в некоторых случаях улучшить производительность
           androidTextureMode: false
         ),
         onMapCreated: (controller) {

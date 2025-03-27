@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../map_styles.dart';
+import '../config/map_styles.dart';
 
 class MapStyleDropdown extends StatelessWidget {
   final String currentStyle;

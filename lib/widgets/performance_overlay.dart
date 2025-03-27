@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import '../config/app_constants.dart';
 
 // Conditionally import dart:html only for web
 import 'dart:html' as html if (dart.library.html) '';
@@ -108,15 +109,14 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
       final frameDuration = elapsed - _lastTime;
       _frameTimes.add(frameDuration);
       
-      // Сохраняем только последние 60 кадров для расчетов
-      if (_frameTimes.length > 60) {
+      // Сохраняем только последние N кадров для расчетов
+      if (_frameTimes.length > AppConstants.performanceSampleCount) {
         _frameTimes.removeAt(0);
       }
       
-      // Обновляем значения не чаще, чем раз в секунду
-      // Это значительно снижает нагрузку от частых вызовов setState
+      // Обновляем значения не чаще, чем через определенный интервал
       if (_lastUpdateTime == Duration.zero || 
-          elapsed - _lastUpdateTime > const Duration(milliseconds: 1000)) {
+          elapsed - _lastUpdateTime > Duration(milliseconds: AppConstants.performanceUpdateIntervalMs)) {
         _lastUpdateTime = elapsed;
         
         // Рассчитываем средний FPS
@@ -129,9 +129,9 @@ class _MapPerformanceOverlayState extends State<MapPerformanceOverlay> with Sing
         final newFrameTime = avgDuration.inMicroseconds / 1000;
         
         // Простой алгоритм подсчета Jank score
-        // Считаем кадры, которые превышают средний показатель на 50%
+        // Считаем кадры, которые превышают средний показатель на определенный множитель
         int jankFrames = 0;
-        final threshold = avgDuration.inMicroseconds * 1.5;
+        final threshold = avgDuration.inMicroseconds * AppConstants.jankThresholdMultiplier;
         for (var duration in _frameTimes) {
           if (duration.inMicroseconds > threshold) {
             jankFrames++;
@@ -200,65 +200,49 @@ class _PerformanceMetricsPainter extends CustomPainter {
     // Рисуем фоновый прямоугольник
     final rect = Rect.fromLTWH(0, 0, size.width, size.height);
     canvas.drawRect(rect, _backgroundPaint);
-    //canvas.drawRect(rect, _borderPaint);
 
-    // Создаем текстовый стиль
+    // Создаем стиль текста
     final textStyle = theme.textTheme.bodySmall?.copyWith(
       color: Colors.black,
       fontWeight: FontWeight.bold,
     );
     
-    // Выводим FPS с цветовой индикацией (выше - лучше)
-    // Для 60Hz дисплеев: >50 - отлично, >30 - приемлемо, <30 - плохо
-    final fpsColor = fps > 50 ? Colors.green : (fps > 30 ? Colors.orange : Colors.red);
-    _drawText(
-      canvas, 
-      'FPS: ${fps.toStringAsFixed(0)}', 
-      textStyle?.copyWith(color: fpsColor), 
-      5, 
-      15
-    );
+    // Рисуем текст FPS
+    final String fpsText = 'FPS: ${fps.toStringAsFixed(1)}';
+    _drawText(canvas, fpsText, textStyle, 5, 15);
     
-    // Выводим Frame time с цветовой индикацией (ниже - лучше)
-    // <18ms - отлично (60+ FPS), <33ms - приемлемо (30+ FPS), >33ms - плохо
-    final frameTimeColor = frameTime < 18 ? Colors.green : (frameTime < 33 ? Colors.orange : Colors.red);
-    _drawText(
-      canvas, 
-      'Frame: ${frameTime.toStringAsFixed(0)} ms', 
-      textStyle?.copyWith(color: frameTimeColor), 
-      5, 
-      35
-    );
+    // Рисуем текст Frame Time
+    final String frameTimeText = 'Frame: ${frameTime.toStringAsFixed(1)} ms';
+    _drawText(canvas, frameTimeText, textStyle, 5, 35);
     
-    // Выводим Jank score
-    final jankColor = jankScore < 5 ? Colors.green : (jankScore < 20 ? Colors.orange : Colors.red);
-    _drawText(
-      canvas, 
-      'Jank: $jankScore%', 
-      textStyle?.copyWith(color: jankColor), 
-      5, 
-      55
-    );
+    // Рисуем текст Jank Score
+    final String jankScoreText = 'Jank: $jankScore%';
     
-    // Выводим доступность WebGL
-    final webGLColor = isWebGLAvailable ? Colors.green : Colors.red;
-    final webGLText = kIsWeb 
-        ? (isWebGLAvailable ? 'WebGL: Доступен' : 'WebGL: Недоступен')
-        : 'WebGL: Недоступен (не web)';
+    // Определяем цвет в зависимости от значения Jank Score
+    final Color jankColor = jankScore > 50 ? Colors.red : 
+                           jankScore > 20 ? Colors.orange : 
+                           Colors.green;
     
+    _drawText(canvas, jankScoreText, textStyle?.copyWith(color: jankColor), 5, 55);
+    
+    // Рисуем информацию о WebGL
+    final String webGLText = 'WebGL: ${isWebGLAvailable ? 'Available' : 'N/A'}';
     _drawText(
       canvas, 
       webGLText, 
-      textStyle?.copyWith(color: webGLColor), 
+      textStyle?.copyWith(
+        color: isWebGLAvailable ? Colors.green : Colors.grey
+      ), 
       5, 
       75
     );
   }
-
+  
+  // Вспомогательный метод для рисования текста
   void _drawText(Canvas canvas, String text, TextStyle? style, double x, double y) {
+    final textSpan = TextSpan(text: text, style: style);
     final textPainter = TextPainter(
-      text: TextSpan(style: style, text: text),
-      textAlign: TextAlign.left,
+      text: textSpan,
       textDirection: TextDirection.ltr,
     );
     textPainter.layout();
@@ -266,9 +250,10 @@ class _PerformanceMetricsPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _PerformanceMetricsPainter oldDelegate) =>
-      fps != oldDelegate.fps ||
-      frameTime != oldDelegate.frameTime ||
-      jankScore != oldDelegate.jankScore ||
-      isWebGLAvailable != oldDelegate.isWebGLAvailable;
+  bool shouldRepaint(_PerformanceMetricsPainter oldDelegate) {
+    return fps != oldDelegate.fps || 
+           frameTime != oldDelegate.frameTime || 
+           jankScore != oldDelegate.jankScore ||
+           isWebGLAvailable != oldDelegate.isWebGLAvailable;
+  }
 } 
