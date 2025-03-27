@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'performance_overlay.dart';
 import 'map_layers_info.dart';
 import 'services/route_manager.dart';
+import 'services/route_api_service.dart';
+import 'models/container_route.dart';
 import 'widgets/map_style_dropdown.dart';
 import 'widgets/layer_visibility_control.dart';
 
@@ -40,6 +42,12 @@ class _NewMapPageState extends State<NewMapPage> {
   
   // Add state variable to track if bulk load is in progress
   bool _isLoadingBulk = false;
+  
+  // Add state variable to track if API route generation is in progress
+  bool _isGeneratingApiRoutes = false;
+  
+  // Add controller for number of routes text field
+  final TextEditingController _routeCountController = TextEditingController(text: '5');
   
   // Key to force rebuild the map when style changes
  // final _mapKey = GlobalKey();
@@ -195,6 +203,98 @@ class _NewMapPageState extends State<NewMapPage> {
     }
   }
   
+  // Add method to generate and add routes via API
+  Future<void> _generateAndAddApiRoutes() async {
+    if (_isGeneratingApiRoutes) return;
+    
+    try {
+      setState(() {
+        _isGeneratingApiRoutes = true;
+      });
+      
+      if (_mapController != null) {
+        // Initialize route manager if needed
+        _routeManager ??= RouteManager(_mapController!);
+        
+        // Parse the route count from the text field
+        final int routeCount;
+        try {
+          routeCount = int.parse(_routeCountController.text);
+        } catch (e) {
+          // Show error dialog for invalid input
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Invalid Input'),
+                content: const Text('Please enter a valid number of routes.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+          setState(() {
+            _isGeneratingApiRoutes = false;
+          });
+          return;
+        }
+        
+        // Generate routes via API
+        final routes = await RouteApiService.generateMultipleRoutes(routeCount);
+        
+        // Process each route and add to map
+        for (final route in routes) {
+          // Create a ContainerRoute object from the API response
+          final containerRoute = ContainerRoute.fromGeoJson(route);
+          
+          // Add the route data to existing sources
+          if (_routeManager != null) {
+            // Use the public method in the RouteManager class
+            // We need to load the first route properly
+            if (!_routeLoaded) {
+              await _routeManager!.loadRouteFromGeoJson(route);
+              _routeLoaded = true;
+            } else {
+              // For subsequent routes, we add them to existing data
+              await _routeManager!.addGeoJsonToExistingSources(route);
+            }
+          }
+        }
+        
+        // Update state
+        setState(() {
+          _routeLoaded = true;
+          _isGeneratingApiRoutes = false;
+        });
+      }
+    } catch (e) {
+      // Show error dialog
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Error Generating Routes'),
+            content: Text('Failed to generate routes via API: $e'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+        
+        setState(() {
+          _isGeneratingApiRoutes = false;
+        });
+      }
+    }
+  }
+  
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -202,6 +302,27 @@ class _NewMapPageState extends State<NewMapPage> {
         title: const Text('Новая карта'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
+          // Add route count text field
+          Container(
+            width: 60,
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            child: TextField(
+              controller: _routeCountController,
+              decoration: const InputDecoration(
+                labelText: 'Кол-во',
+                border: OutlineInputBorder(),
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              ),
+              keyboardType: TextInputType.number,
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+          // Add "Generate API Routes" button
+          IconButton(
+            icon: Icon(_isGeneratingApiRoutes ? Icons.sync : Icons.api),
+            tooltip: 'Сгенерировать маршруты по API',
+            onPressed: _isGeneratingApiRoutes ? null : _generateAndAddApiRoutes,
+          ),
           // Add Style Dropdown in AppBar
           MapStyleDropdown(
             currentStyle: _currentMapStyle,
@@ -330,6 +451,10 @@ class _NewMapPageState extends State<NewMapPage> {
   void dispose() {
     // Dispose route manager
     _routeManager?.dispose();
+    
+    // Dispose text controller
+    _routeCountController.dispose();
+    
     super.dispose();
   }
 } 

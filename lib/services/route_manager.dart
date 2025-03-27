@@ -45,6 +45,46 @@ class RouteManager {
     }
   }
 
+  /// Load a container route directly from GeoJSON data (for API responses)
+  Future<void> loadRouteFromGeoJson(Map<String, dynamic> geojsonData) async {
+    try {
+      // Initialize layer manager if not already initialized
+      await initialize();
+      
+      // Parse the data into a ContainerRoute object
+      _currentRoute = ContainerRoute.fromGeoJson(geojsonData);
+      
+      // Update the map sources with the route data
+      if (_layerManager != null && _currentRoute != null) {
+        await _layerManager!.updateSourcesFromRoute(_currentRoute!);
+        
+        // Fit the map to the route
+        await _layerManager!.fitToRoute(_mapController, _currentRoute!);
+      }
+    } catch (e) {
+      print('Error loading route from GeoJSON data: $e');
+      rethrow;
+    }
+  }
+
+  /// Add GeoJSON data to existing sources without replacing existing data
+  Future<void> addGeoJsonToExistingSources(Map<String, dynamic> geojsonData) async {
+    try {
+      // Initialize layer manager if not already initialized
+      await initialize();
+      
+      // Parse the data into a ContainerRoute object
+      final route = ContainerRoute.fromGeoJson(geojsonData);
+      
+      // Add the route data to existing sources
+      await _addRouteDataToSources(route);
+      
+    } catch (e) {
+      print('Error adding GeoJSON data to existing sources: $e');
+      rethrow;
+    }
+  }
+
   /// Load multiple GeoJSON files and add their data to existing sources
   Future<void> loadMultipleGeoJsonFiles(List<String> filePaths) async {
     try {
