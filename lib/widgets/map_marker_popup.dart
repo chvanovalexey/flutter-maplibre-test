@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 class MapMarkerPopup extends StatelessWidget {
   final String title;
   final String? description;
+  final Map<String, dynamic>? properties;
   final VoidCallback? onClose;
 
   const MapMarkerPopup({
     super.key, 
     required this.title,
     this.description,
+    this.properties,
     this.onClose,
   });
 
@@ -91,16 +93,29 @@ class MapMarkerPopup extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 8),
-                  // Добавляем кнопку "Подробнее"
+                  // Добавляем дополнительную информацию о маркере из свойств
+                  if (properties != null && properties!.isNotEmpty)
+                    _buildPropertiesList(properties!),
+                  // Добавляем кнопку "Подробнее" если есть дополнительные свойства
+                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerRight,
                     child: ElevatedButton(
                       onPressed: () {
-                        // Здесь можно добавить действие для показа дополнительной информации
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Дополнительная информация о $title'),
-                            duration: const Duration(seconds: 2),
+                        // Показываем диалог с полной информацией о маркере
+                        showDialog(
+                          context: context,
+                          builder: (context) => AlertDialog(
+                            title: Text(title),
+                            content: SingleChildScrollView(
+                              child: _buildFullPropertiesList(properties),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: const Text('Закрыть'),
+                              ),
+                            ],
                           ),
                         );
                       },
@@ -119,6 +134,110 @@ class MapMarkerPopup extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+  
+  /// Создает компактный список свойств маркера
+  Widget _buildPropertiesList(Map<String, dynamic> props) {
+    // Отображаем только самые важные свойства
+    final importantKeys = ['pointType', 'marker-symbol', 'title'];
+    final visibleProps = props.entries
+        .where((entry) => !importantKeys.contains(entry.key) && entry.value != null)
+        .take(2) // Берем только два дополнительных свойства для компактности
+        .toList();
+        
+    if (visibleProps.isEmpty) return const SizedBox.shrink();
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: visibleProps.map((entry) {
+        // Форматируем ключ для отображения
+        final key = entry.key.replaceAll('-', ' ').replaceAll('_', ' ');
+        final String formattedKey = key.substring(0, 1).toUpperCase() + key.substring(1);
+        
+        return Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '$formattedKey: ',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  '${entry.value}',
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+  
+  /// Создает полный список всех свойств маркера для детального просмотра
+  Widget _buildFullPropertiesList(Map<String, dynamic>? props) {
+    if (props == null || props.isEmpty) {
+      return const Text('Нет дополнительной информации');
+    }
+    
+    // Исключаем некоторые технические свойства
+    final excludedKeys = ['point', 'name', 'pointType'];
+    
+    final visibleProps = props.entries
+        .where((entry) => !excludedKeys.contains(entry.key) && entry.value != null)
+        .toList();
+        
+    if (visibleProps.isEmpty) return const Text('Нет дополнительной информации');
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (description != null && description!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              description!,
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+        ...visibleProps.map((entry) {
+          // Форматируем ключ для отображения
+          final key = entry.key.replaceAll('-', ' ').replaceAll('_', ' ');
+          final String formattedKey = key.substring(0, 1).toUpperCase() + key.substring(1);
+          
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 100,
+                  child: Text(
+                    '$formattedKey:',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    '${entry.value}',
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
     );
   }
 } 

@@ -12,7 +12,7 @@ import '../widgets/layer_visibility_control.dart';
 import '../utils/performance_utils.dart';
 import '../services/container_route_layer_manager.dart';
 import '../models/container_route.dart';
-import '../widgets/map_marker_popup.dart';
+import '../services/popup_manager.dart';
 
 @immutable
 class MapScreen extends StatefulWidget {
@@ -53,12 +53,10 @@ class _MapScreenState extends State<MapScreen> {
   // Добавляем контроллер для текстового поля фильтрации
   final TextEditingController _filterController = TextEditingController();
 
-  // Добавляем переменные для отслеживания выбранного маркера и его позиции
-  PortPoint? _selectedMarker;
-  Offset? _markerScreenPosition;
-  // Добавляем ключ для WidgetLayer для принудительного обновления при изменении маркеров
-  final _widgetLayerKey = GlobalKey();
-  // Добавляем ключ для MapLibreMap, чтобы получить его размеры
+  // Менеджер всплывающих окон
+  PopupManager? _popupManager;
+  
+  // Ключ для карты
   final _mapKey = GlobalKey();
   
   // Method to toggle between projections
@@ -88,9 +86,8 @@ class _MapScreenState extends State<MapScreen> {
       // Reset route manager and route loaded state
       _routeManager = null;
       _routeLoaded = false;
-      // Reset selected marker
-      _selectedMarker = null;
-      _markerScreenPosition = null;
+      // Сбрасываем менеджер всплывающих окон
+      _popupManager = null;
     });
   }
   
@@ -126,9 +123,10 @@ class _MapScreenState extends State<MapScreen> {
       await _routeManager!.clearRoute();
       setState(() {
         _routeLoaded = false;
-        // Очищаем выбранный маркер при очистке маршрута
-        _selectedMarker = null;
-        _markerScreenPosition = null;
+        // Сбрасываем выбранный маркер
+        if (_popupManager != null) {
+          _popupManager!.resetSelection();
+        }
       });
     }
   }
@@ -154,6 +152,9 @@ class _MapScreenState extends State<MapScreen> {
         if (_mapController != null) {
           // Initialize route manager if needed
           _routeManager ??= RouteManager(_mapController!);
+          
+          // Инициализируем менеджер всплывающих окон, если не инициализирован
+          _popupManager ??= PopupManager(_mapController!);
           
           // Parse the route count from the text field
           final int routeCount;
@@ -301,73 +302,17 @@ class _MapScreenState extends State<MapScreen> {
     _routeManager!.reloadCurrentRoute();
   }
   
-  // Метод для обработки нажатия на маркер в WidgetLayer
-  void _onMarkerTap(PortPoint marker) {
-    // Показываем всплывающее окно при клике на маркер
-    setState(() {
-      _selectedMarker = marker;
-    });
-    
-    // Получаем позицию маркера на экране
-    _updateMarkerScreenPosition(marker);
-  }
-  
-  // Метод для обновления позиции маркера на экране
-  Future<void> _updateMarkerScreenPosition(PortPoint marker) async {
-    if (_mapController == null) return;
-    
-    try {
-      // Преобразуем географические координаты в координаты экрана
-      final screenPosition = await _mapController!.toScreenLocation(
-        Position(marker.coordinates[0], marker.coordinates[1])
-      );
+  // Метод для обработки событий карты
+  Future<void> _handleMapEvent(MapEvent event) async {
+    if (_popupManager != null && _routeManager?.currentRoute != null) {
+      // Обрабатываем клик для показа всплывающего окна
+      final stateChanged = await _popupManager!.handleMapClick(event, _routeManager!.currentRoute);
       
-      // Обновляем позицию всплывающего окна
-      setState(() {
-        _markerScreenPosition = screenPosition;
-      });
-    } catch (e) {
-      print('Ошибка при определении позиции маркера на экране: $e');
-    }
-  }
-  
-  // Метод для создания списка маркеров для WidgetLayer
-  List<Marker> _createMarkers() {
-    if (_routeManager?.currentRoute == null) {
-      return [];
-    }
-    
-    final currentRoute = _routeManager!.currentRoute!;
-    final List<Marker> markers = [];
-    
-    // Функция добавления маркеров определенного типа с соответствующей иконкой
-    void addMarkersWithIcon(List<PortPoint> ports, IconData icon, Color color) {
-      for (final port in ports) {
-        markers.add(
-          Marker(
-            point: Position(port.coordinates[0], port.coordinates[1]),
-            size: const Size(30, 30),
-            alignment: Alignment.bottomCenter,
-            child: GestureDetector(
-              onTap: () => _onMarkerTap(port),
-              child: Icon(
-                icon,
-                color: color,
-                size: 30,
-              ),
-            ),
-          ),
-        );
+      // Если состояние изменилось, обновляем UI
+      if (stateChanged) {
+        setState(() {});
       }
     }
-    
-    // Добавляем маркеры по типам с разными иконками
-    addMarkersWithIcon(currentRoute.departurePorts, Icons.trip_origin, Colors.green);
-    addMarkersWithIcon(currentRoute.destinationPorts, Icons.place, Colors.red);
-    addMarkersWithIcon(currentRoute.intermediatePorts, Icons.anchor, Colors.blue);
-    addMarkersWithIcon(currentRoute.currentPositions, Icons.directions_boat, Colors.orange);
-    
-    return markers;
   }
 
   @override
@@ -478,7 +423,7 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
       body: MapLibreMap(
-        key: _mapKey, // Добавляем ключ для доступа к размерам карты
+        key: _mapKey,
         options: MapOptions(
           initCenter: Position(
             AppConstants.initialLongitude, 
@@ -496,6 +441,9 @@ class _MapScreenState extends State<MapScreen> {
           if (kIsWeb) {
             _mapController?.style?.setProjection(_currentProjection);
           }
+          
+          // Инициализируем менеджер всплывающих окон
+          _popupManager = PopupManager(controller);
         },
         onStyleLoaded: (style) {
           // When style is loaded, ensure our projection state matches what the map is using
@@ -505,14 +453,8 @@ class _MapScreenState extends State<MapScreen> {
             _updateProjectionState(_currentProjection);
           }
         },
+        onEvent: _handleMapEvent, // Обработчик событий карты
         children: [
-          // Добавляем WidgetLayer для интерактивных маркеров
-          if (_routeLoaded && _routeManager?.currentRoute != null) 
-            WidgetLayer(
-              key: _widgetLayerKey,
-              allowInteraction: true, // Разрешаем взаимодействие с маркерами
-              markers: _createMarkers(),
-            ),
           const MapScalebar(alignment: Alignment.bottomRight),
           // Custom SourceAttribution with flexible constraints to handle overflow
           Positioned(
@@ -540,21 +482,12 @@ class _MapScreenState extends State<MapScreen> {
             ),
           ),
           // Добавляем всплывающее окно при выборе маркера
-          if (_selectedMarker != null && _markerScreenPosition != null)
-            Positioned(
-              left: _markerScreenPosition!.dx - 100, // Центрируем относительно маркера
-              top: _markerScreenPosition!.dy - 120, // Размещаем над маркером
-              width: 200, // Фиксированная ширина для попапа
-              child: MapMarkerPopup(
-                title: _selectedMarker!.name,
-                description: _selectedMarker!.properties['description'] as String? ?? '',
-                onClose: () {
-                  setState(() {
-                    _selectedMarker = null;
-                    _markerScreenPosition = null;
-                  });
-                },
-              ),
+          if (_popupManager != null)
+            Builder(
+              builder: (context) => _popupManager!.buildPopupWidget(
+                context, 
+                () => setState(() {}), // Callback для обновления состояния
+              ) ?? const SizedBox.shrink(),
             ),
         ],
       ),
@@ -565,6 +498,9 @@ class _MapScreenState extends State<MapScreen> {
   void dispose() {
     // Dispose route manager
     _routeManager?.dispose();
+    
+    // Dispose popup manager
+    _popupManager?.dispose();
     
     // Dispose text controllers
     _routeCountController.dispose();
